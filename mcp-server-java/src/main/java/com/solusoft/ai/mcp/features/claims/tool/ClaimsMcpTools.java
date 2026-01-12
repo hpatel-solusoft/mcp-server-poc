@@ -142,6 +142,7 @@ public class ClaimsMcpTools {
             log.error("❌ Base64 Decoding Failed.", e);
             return handleError("uploadDocument", e);
         } catch (Exception e) {
+        	log.error("❌ Base64 Decoding Failed.", e);
             return handleError("uploadDocument", e);
         }
     }
@@ -181,6 +182,7 @@ public class ClaimsMcpTools {
             return result;
 
         } catch (Exception e) {
+        	log.error("❌ create_motor_claim Failed.", e);
             return handleError("createMotorClaim", e);
         }
     }
@@ -223,6 +225,7 @@ public class ClaimsMcpTools {
             return result;
 
         } catch (Exception e) {
+        	log.error("❌ create_healthcare_claim Failed.", e);
             return handleError("createHealthClaim", e);
         }
     }
@@ -267,6 +270,7 @@ public class ClaimsMcpTools {
             return result;
 
         } catch (Exception e) {
+        	log.error("❌ store_claim_record Failed.", e);
             return handleError("storeClaimRecord", e);
         }
     }

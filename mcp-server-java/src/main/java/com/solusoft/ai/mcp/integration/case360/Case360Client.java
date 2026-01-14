@@ -1,9 +1,16 @@
 package com.solusoft.ai.mcp.integration.case360;
 
 import java.math.BigDecimal;
+import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Map;
+import java.util.Set;
+
 import org.springframework.stereotype.Service;
 import org.springframework.ws.client.core.WebServiceTemplate;
+
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.solusoft.ai.mcp.integration.case360.soap.CreateCaseFolder;
 import com.solusoft.ai.mcp.integration.case360.soap.CreateCaseFolderResponse;
 import com.solusoft.ai.mcp.integration.case360.soap.CreateFileStore;
@@ -18,9 +25,7 @@ import com.solusoft.ai.mcp.integration.case360.soap.GetCaseFolderFields;
 import com.solusoft.ai.mcp.integration.case360.soap.GetCaseFolderFieldsResponse;
 import com.solusoft.ai.mcp.integration.case360.soap.ObjectFactory;
 import com.solusoft.ai.mcp.integration.case360.soap.PutFile;
-import com.solusoft.ai.mcp.integration.case360.soap.PutFileResponse;
 import com.solusoft.ai.mcp.integration.case360.soap.SetCaseFolderFields;
-import com.solusoft.ai.mcp.integration.case360.soap.SetCaseFolderFieldsResponse;
 
 import jakarta.xml.bind.JAXBElement;
 import lombok.extern.slf4j.Slf4j;
@@ -30,10 +35,13 @@ import lombok.extern.slf4j.Slf4j;
 public class Case360Client {
 
     private final WebServiceTemplate webServiceTemplate;
+    private final ObjectMapper objectMapper; // Added for JSON serialization
     private final ObjectFactory objectFactory = new ObjectFactory();
     
-    public Case360Client(WebServiceTemplate webServiceTemplate) {
+    // Injected ObjectMapper to handle dynamic field serialization
+    public Case360Client(WebServiceTemplate webServiceTemplate, ObjectMapper objectMapper) {
         this.webServiceTemplate = webServiceTemplate;
+        this.objectMapper = objectMapper;
     }
 
     public BigDecimal getCaseFolderTemplateId(String templateName) {
@@ -41,19 +49,20 @@ public class Case360Client {
         log.debug("Input templateName: {}", templateName);
 
         try {
-            DoQueryByScriptName request = new DoQueryByScriptName();
+            var request = new DoQueryByScriptName(); // Java 10+ 'var'
             request.setQueryScriptName("getCaseTemplateIdFromName");
             
-            FieldPropertiesTO param = new FieldPropertiesTO();
+            var param = new FieldPropertiesTO();
             param.setPropertyName("TEMPLATENAME");
             param.setStringValue(templateName);
-            param.setDataType(4); // 4 = String in Case360
+            param.setDataType(4); 
                 
-            FieldPropertiesTOArray paramWrapper = new FieldPropertiesTOArray();
+            var paramWrapper = new FieldPropertiesTOArray();
             paramWrapper.getFieldPropertiesTO().add(param);
             
             request.setQueryProperties(paramWrapper);
             request.getQueryProperties().getFieldPropertiesTO().add(param);
+            
             JAXBElement<DoQueryByScriptName> requestElement = 
                     objectFactory.createDoQueryByScriptName(request);
 
@@ -66,7 +75,6 @@ public class Case360Client {
             BigDecimal result = response.getReturn().getFmsRowSetTO().getFirst().getFmsRowTO().getFirst().getFieldList().get(0).getBigDecimalValue().getValue();
             
             log.debug("Return value (Template ID): {}", result);
-            log.info("Exiting getCaseFolderTemplateId");
             return result;
 
         } catch (Exception e) {
@@ -75,22 +83,20 @@ public class Case360Client {
         }
     }
     
-    
     public BigDecimal getFilestoreTemplateId(String templateName) {
         log.info("Entering getFilestoreTemplateId");
         log.debug("Input templateName: {}", templateName);
 
         try {
-            // Create Request Object
-            DoQueryByScriptName request = new DoQueryByScriptName();
+            var request = new DoQueryByScriptName();
             request.setQueryScriptName("getFileStoreTemplateId");
             
-            FieldPropertiesTO param = new FieldPropertiesTO();
+            var param = new FieldPropertiesTO();
             param.setPropertyName("TEMPLATENAME");
             param.setStringValue(templateName);
-            param.setDataType(4); // 4 = String in Case360
+            param.setDataType(4); 
                 
-            FieldPropertiesTOArray paramWrapper = new FieldPropertiesTOArray();
+            var paramWrapper = new FieldPropertiesTOArray();
             paramWrapper.getFieldPropertiesTO().add(param);
             
             request.setQueryProperties(paramWrapper);
@@ -108,7 +114,6 @@ public class Case360Client {
             BigDecimal result = response.getReturn().getFmsRowSetTO().getFirst().getFmsRowTO().getFirst().getFieldList().get(0).getBigDecimalValue().getValue();
             
             log.debug("Return value (FileStore Template ID): {}", result);
-            log.info("Exiting getFilestoreTemplateId");
             return result;
 
         } catch (Exception e) {
@@ -122,31 +127,33 @@ public class Case360Client {
         log.debug("Input templateId: {}", templateId);
 
         try {
-            CreateCaseFolder request = new CreateCaseFolder();
+            var request = new CreateCaseFolder();
             request.setCaseFolderTemplateId(templateId);
             
             JAXBElement<CreateCaseFolder> requestElement = 
                     objectFactory.createCreateCaseFolder(request);
             
-            
             @SuppressWarnings("unchecked")
             JAXBElement<CreateCaseFolderResponse> responseElement = 
                 (JAXBElement<CreateCaseFolderResponse>) webServiceTemplate.marshalSendAndReceive(requestElement);
+            
             CreateCaseFolderResponse response = responseElement.getValue();
-
-            // The response is usually the new Case ID (BigDecimal or String)
             String result = String.valueOf(response.getReturn());
             
             log.debug("Return value (New Case ID): {}", result);
-            log.info("Exiting createCase");
             return result;
 
         } catch (Exception e) {
             log.error("Error in createCase for templateId: {}", templateId, e);
-            throw e; // Rethrowing since original code didn't catch explicitly, but logging ensures visibility
+            throw e; 
         }
     }
 
+    /**
+     * Updates fields in Case360. 
+     * Handles Dynamic Fields: Any key in 'updates' that does NOT exist in the case definition
+     * will be bundled into a JSON string and saved to 'ADDITIONAL_DATA'.
+     */
     public void updateCaseFields(String caseId, Map<String, Object> updates) {
         log.info("Entering updateCaseFields");
         log.debug("Input caseId: {}, updates: {}", caseId, updates);
@@ -155,53 +162,81 @@ public class Case360Client {
             BigDecimal caseIdBd = new BigDecimal(caseId);
 
             // A. GET Existing Fields
-            GetCaseFolderFields getRequest = new GetCaseFolderFields();
+            var getRequest = new GetCaseFolderFields();
             getRequest.setCaseFolderId(caseIdBd);
-            
             
             JAXBElement<GetCaseFolderFields> getRequestElement = 
                     objectFactory.createGetCaseFolderFields(getRequest);
-            
             
             @SuppressWarnings("unchecked")
             JAXBElement<GetCaseFolderFieldsResponse> getResponseElement = 
                 (JAXBElement<GetCaseFolderFieldsResponse>) webServiceTemplate.marshalSendAndReceive(getRequestElement);
             
-            GetCaseFolderFieldsResponse getResponse = getResponseElement.getValue();
-            
-            FmsRowTO fields = getResponse.getReturn();
+            FmsRowTO fields = getResponseElement.getValue().getReturn();
+            var serverFieldList = fields.getFieldList();
 
-            // B. MODIFY Fields (Memory only)
-            // We iterate through the retrieved fields and update matches
+            // B. TRACKING & MODIFYING
+            Set<String> processedKeys = new HashSet<>();
+            FmsFieldTO additionalDataField = null;
             boolean isModified = false;
-            for (FmsFieldTO field : fields.getFieldList()) {
-                if (updates.containsKey(field.getFieldName())) {
-                    Object newValue = updates.get(field.getFieldName());
-                    applyValueToField(field, newValue);
+
+            // Pass 1: Update known columns and locate the ADDITIONAL_DATA field holder
+            for (FmsFieldTO field : serverFieldList) {
+                String fieldName = field.getFieldName();
+                
+                // Keep a reference to the special field for dynamic data
+                if ("ADDITIONAL_DATA".equalsIgnoreCase(fieldName)) {
+                    additionalDataField = field;
+                }
+
+                if (updates.containsKey(fieldName)) {
+                    applyValueToField(field, updates.get(fieldName));
+                    processedKeys.add(fieldName);
                     isModified = true;
+                }
+            }
+
+            // Pass 2: Handle Dynamic "Leftover" Fields
+            // Create a map of fields that were NOT found in the main server list
+            Map<String, Object> dynamicLeftovers = new HashMap<>(updates);
+            // Remove keys we successfully processed in Pass 1
+            processedKeys.forEach(dynamicLeftovers::remove);
+
+            if (!dynamicLeftovers.isEmpty()) {
+                if (additionalDataField != null) {
+                    try {
+                        // Serialize leftovers to JSON string
+                        String jsonValue = objectMapper.writeValueAsString(dynamicLeftovers);
+                        
+                        log.info("Bundling {} dynamic fields into ADDITIONAL_DATA", dynamicLeftovers.size());
+                        applyValueToField(additionalDataField, jsonValue);
+                        isModified = true;
+                        
+                    } catch (JsonProcessingException e) {
+                        log.error("Failed to serialize dynamic fields to JSON", e);
+                        // We continue, so we don't block the valid fields from saving
+                    }
+                } else {
+                    log.warn("Dynamic fields found {} but 'ADDITIONAL_DATA' field is missing in Case360 template definition.", dynamicLeftovers.keySet());
                 }
             }
 
             if (!isModified) {
                 log.info("No fields modified for caseId: {}. Exiting updateCaseFields.", caseId);
-                return; // Nothing to save
+                return; 
             }
 
             // C. SET (Save) back to Server
-            SetCaseFolderFields setRequest = new SetCaseFolderFields();
+            var setRequest = new SetCaseFolderFields();
             setRequest.setCaseFolderInstanceId(caseIdBd);
-            setRequest.setOriginalCaseFolderFields(fields); // Optimistic locking
-            setRequest.setNewCaseFolderFields(fields);      // The modified object
-            setRequest.setBForceUpdate(true);               // Force save
+            setRequest.setOriginalCaseFolderFields(fields);
+            setRequest.setNewCaseFolderFields(fields);
+            setRequest.setBForceUpdate(true); 
             
             JAXBElement<SetCaseFolderFields> setRequestElement = 
                     objectFactory.createSetCaseFolderFields(setRequest);
             
-            @SuppressWarnings("unchecked")
-            JAXBElement<SetCaseFolderFieldsResponse> setResponseElement = 
-                (JAXBElement<SetCaseFolderFieldsResponse>) webServiceTemplate.marshalSendAndReceive(setRequestElement);
-            
-            SetCaseFolderFieldsResponse setResponse = setResponseElement.getValue();
+            webServiceTemplate.marshalSendAndReceive(setRequestElement);
             
             log.info("Exiting updateCaseFields successfully");
 
@@ -211,25 +246,30 @@ public class Case360Client {
         }
     }
 
+    
     private void applyValueToField(FmsFieldTO field, Object value) {
-        // No heavy logging here to avoid spamming logs per field, but safely catching issues is good practice
-        try {
-            field.setModified(true);
-            field.setNullValue(false);
+        field.setModified(true);
+        field.setNullValue(false);
 
-            // Logic matched from your Python 'update_field_values' method
-            if (value instanceof String) {
-                field.setStringValue((String) value);
-                field.setBigDecimalValue(null);
-                // In a real app, you might check field.getDataType() == 4
-            } else if (value instanceof BigDecimal) {
-                // Case360 uses BigDecimal for numbers
-                field.setBigDecimalValue(objectFactory.createFmsFieldTOBigDecimalValue(new BigDecimal(value.toString())));
+        // Java 21 Pattern Matching for Switch
+        switch (value) {
+            case String s -> {
+                field.setStringValue(s);
+                // Resetting other potential types (Case360 usually requires nulling the others)
+                field.setBigDecimalValue(null); 
             }
-            // Add Date logic here if needed
-        } catch (Exception e) {
-            log.error("Error applying value to field: {} with value: {}", field.getFieldName(), value, e);
-            throw e;
+            case BigDecimal bd -> 
+                field.setBigDecimalValue(objectFactory.createFmsFieldTOBigDecimalValue(bd));
+            case Integer i -> 
+                field.setBigDecimalValue(objectFactory.createFmsFieldTOBigDecimalValue(BigDecimal.valueOf(i)));
+            case Double d -> 
+                field.setBigDecimalValue(objectFactory.createFmsFieldTOBigDecimalValue(BigDecimal.valueOf(d)));
+            case Boolean b -> 
+                field.setStringValue(String.valueOf(b)); // Defaulting boolean to String "true"/"false"
+            case null -> 
+                field.setNullValue(true);
+            default -> 
+                field.setStringValue(value.toString());
         }
     }
     
@@ -238,7 +278,7 @@ public class Case360Client {
         log.debug("Input templateId: {}", templateId);
         
         try {
-            CreateFileStore request = new CreateFileStore();
+            var request = new CreateFileStore();
             request.setTemplateId(templateId);
             
             JAXBElement<CreateFileStore> requestElement = 
@@ -252,7 +292,6 @@ public class Case360Client {
             String result = String.valueOf(response.getReturn());
             
             log.debug("Return value (FileStore ID): {}", result);
-            log.info("Exiting createFileStore");
             return result;
 
         } catch (Exception e) {
@@ -263,11 +302,10 @@ public class Case360Client {
     
     public void uploadDocument(BigDecimal docId, byte[] content, String fileName) {
         log.info("Entering uploadDocument");
-        // Avoiding logging raw byte[] content content, logging size instead
         log.debug("Input docId: {}, fileName: {}, contentSize: {}", docId, fileName, (content != null ? content.length : 0));
         
         try {
-            PutFile request = new PutFile();
+            var request = new PutFile();
             request.setData(content);
             request.setDocumentId(docId);
             request.setFileName(fileName);
@@ -275,11 +313,7 @@ public class Case360Client {
             JAXBElement<PutFile> requestElement = 
                     objectFactory.createPutFile(request);
             
-            @SuppressWarnings("unchecked")
-            JAXBElement<PutFileResponse> responseElement  = 
-                (JAXBElement<PutFileResponse>) webServiceTemplate.marshalSendAndReceive(requestElement);
-            
-            PutFileResponse setResponse = responseElement.getValue();
+            webServiceTemplate.marshalSendAndReceive(requestElement);
             
             log.info("Exiting uploadDocument successfully");
 

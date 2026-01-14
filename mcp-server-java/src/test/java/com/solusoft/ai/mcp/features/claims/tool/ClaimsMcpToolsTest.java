@@ -1,5 +1,6 @@
 package com.solusoft.ai.mcp.features.claims.tool;
 
+import static org.assertj.core.api.Assertions.entry;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
@@ -19,8 +20,6 @@ import org.mockito.MockitoAnnotations;
 import org.springframework.jdbc.core.JdbcTemplate;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.solusoft.ai.mcp.features.claims.model.CreateHealthClaimRequest;
-import com.solusoft.ai.mcp.features.claims.model.CreateMotorClaimRequest;
 import com.solusoft.ai.mcp.integration.case360.Case360Client;
 
 public class ClaimsMcpToolsTest {
@@ -103,9 +102,16 @@ public class ClaimsMcpToolsTest {
 
     @Test
     public void testCreateMotorClaim_success() throws Exception {
-        CreateMotorClaimRequest req = new CreateMotorClaimRequest(
-            "Alice", "POL-0001", 1500.0, java.time.LocalDate.now().toString(), "Rear end collision", null, "accident", "high"
-        );
+    	// Note: 'claimDocId' is excluded here because Map.of throws error on null values
+    	Map<String, Object> req = Map.of(
+    	    "claimantName", "Alice",
+    	    "policyNumber", "POL-0001",
+    	    "claimAmount", 1500.0,
+    	    "incidentDate", java.time.LocalDate.now().toString(),
+    	    "description", "Rear end collision",
+    	    "incidentType", "accident",
+    	    "priority", "high"
+    	);
 
         when(case360Client.getCaseFolderTemplateId(any())).thenReturn(BigDecimal.TEN);
         when(case360Client.createCase(any())).thenReturn("CASE-123");
@@ -120,9 +126,21 @@ public class ClaimsMcpToolsTest {
 
     @Test
     public void testCreateHealthClaim_success() throws Exception {
-        CreateHealthClaimRequest req = new CreateHealthClaimRequest(
-            "Bob", "POL-9999", 2000.0, java.time.LocalDate.now().toString(), "Flu", "Saint Hospital", "Medical expenses", null, "illness", "Dr. Who", "Notes", "normal", "Summary"
-        );
+    	Map<String, Object> req = Map.ofEntries(
+    		    entry("claimantName", "Bob"),
+    		    entry("policyNumber", "POL-9999"),
+    		    entry("claimAmount", 2000.0),
+    		    entry("incidentDate", java.time.LocalDate.now().toString()),
+    		    entry("diagnosis", "Flu"),
+    		    entry("hospitalName", "Saint Hospital"),
+    		    entry("description", "Medical expenses"),
+    		    // entry("claimDocId", null), // OMITTED: Map.ofEntries does not allow nulls
+    		    entry("incidentType", "illness"),
+    		    entry("physician", "Dr. Who"),
+    		    entry("physicianNotes", "Notes"),
+    		    entry("priority", "normal"),
+    		    entry("treatmentSummary", "Summary")
+    		);
 
         when(case360Client.getCaseFolderTemplateId(any())).thenReturn(BigDecimal.TEN);
         when(case360Client.createCase(any())).thenReturn("CASE-999");
@@ -194,7 +212,15 @@ public class ClaimsMcpToolsTest {
         String incidentDate = claimMap.containsKey("incident_date") ? String.valueOf(claimMap.get("incident_date")) : "2025-01-01";
         String description = claimMap.containsKey("description") ? String.valueOf(claimMap.get("description")) : "No desc";
 
-        CreateMotorClaimRequest req = new CreateMotorClaimRequest(claimant, policy, amount, incidentDate, description, docId, "accident", "normal");
+        Map<String, Object> req = new HashMap<>();
+        req.put("claimantName", claimant);
+        req.put("policyNumber", policy);
+        req.put("claimAmount", amount);
+        req.put("incidentDate", incidentDate);
+        req.put("description", description);
+        req.put("claimDocId", docId); // Handles null safely
+        req.put("incidentType", "accident");
+        req.put("priority", "normal");
 
         // Mock case creation
         when(case360Client.getCaseFolderTemplateId(any())).thenReturn(BigDecimal.TEN);
@@ -262,7 +288,20 @@ public class ClaimsMcpToolsTest {
         Double amount = claimMap.containsKey("claim_amount") ? Double.valueOf(String.valueOf(claimMap.get("claim_amount"))) : 3000.0;
         String incidentDate = claimMap.containsKey("incident_date") ? String.valueOf(claimMap.get("incident_date")) : "2025-02-02";
 
-        CreateHealthClaimRequest req = new CreateHealthClaimRequest(claimant, policy, amount, incidentDate, "Sprain", "General Hospital", "Medical bills", docId, "accident", "Dr. House", "Notes", "high", "Treatment summary");
+        Map<String, Object> req = new HashMap<>();
+        req.put("claimantName", claimant);
+        req.put("policyNumber", policy);
+        req.put("claimAmount", amount);
+        req.put("incidentDate", incidentDate);
+        req.put("diagnosis", "Sprain");
+        req.put("hospitalName", "General Hospital");
+        req.put("description", "Medical bills");
+        req.put("claimDocId", docId); // Safely handles null
+        req.put("incidentType", "accident");
+        req.put("physician", "Dr. House");
+        req.put("physicianNotes", "Notes");
+        req.put("priority", "high");
+        req.put("treatmentSummary", "Treatment summary");
 
         // Case creation mocks
         when(case360Client.getCaseFolderTemplateId(any())).thenReturn(BigDecimal.TEN);

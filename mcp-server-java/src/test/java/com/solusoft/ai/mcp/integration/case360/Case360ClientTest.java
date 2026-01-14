@@ -27,6 +27,7 @@ import com.solusoft.ai.mcp.integration.case360.soap.PutFileResponse;
 import com.solusoft.ai.mcp.integration.case360.soap.DoQueryByScriptName;
 import com.solusoft.ai.mcp.integration.case360.soap.FieldPropertiesTO;
 import com.solusoft.ai.mcp.integration.case360.soap.FieldPropertiesTOArray;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.solusoft.ai.mcp.integration.case360.soap.CreateCaseFolder;
 import com.solusoft.ai.mcp.integration.case360.soap.CreateFileStore;
 import com.solusoft.ai.mcp.integration.case360.soap.PutFile;
@@ -37,13 +38,16 @@ public class Case360ClientTest {
 
     @Mock
     private WebServiceTemplate webServiceTemplate;
+    
+    @Mock
+    private ObjectMapper objectMapper;
 
     private Case360Client client;
 
     @BeforeEach
     public void setup() {
         MockitoAnnotations.openMocks(this);
-        client = new Case360Client(webServiceTemplate);
+        client = new Case360Client(webServiceTemplate,objectMapper);
     }
 
     @Test
@@ -133,7 +137,10 @@ public class Case360ClientTest {
         getResp.setReturn(row);
 
         JAXBElement<GetCaseFolderFieldsResponse> getWrap = new JAXBElement<>(new QName("","getCaseFolderFieldsResponse"), GetCaseFolderFieldsResponse.class, getResp);
-        JAXBElement<Object> setWrap = new JAXBElement<>(new QName("","setCaseFolderFieldsResponse"), Object.class, new Object());
+
+        // Prepare a real SetCaseFolderFieldsResponse instance for the second call
+        com.solusoft.ai.mcp.integration.case360.soap.SetCaseFolderFieldsResponse setResp = new com.solusoft.ai.mcp.integration.case360.soap.SetCaseFolderFieldsResponse();
+        JAXBElement<com.solusoft.ai.mcp.integration.case360.soap.SetCaseFolderFieldsResponse> setWrap = new JAXBElement<>(new QName("","setCaseFolderFieldsResponse"), com.solusoft.ai.mcp.integration.case360.soap.SetCaseFolderFieldsResponse.class, setResp);
 
         // First call returns getWrap, second call returns setWrap
         when(webServiceTemplate.marshalSendAndReceive(any())).thenReturn(getWrap).thenReturn(setWrap);

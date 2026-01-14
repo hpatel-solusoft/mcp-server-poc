@@ -1,0 +1,13 @@
+{
+  "mcpServers": {
+    "claims-processor": {
+      "url": "http://localhost:8000/sse",
+      "transport": "sse"
+    },
+    "claims-processor-java": {
+      "url": "http://localhost:9090/mcp/sse",
+      "transport": "sse"
+    }
+    
+  }
+}

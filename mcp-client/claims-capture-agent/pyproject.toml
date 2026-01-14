@@ -1,0 +1,20 @@
+[project]
+name = "claims-capture-agent"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "mcp>=1.24.0",
+    "openai>=2.11.0",
+    "watchdog>=6.0.0",
+    "extra-streamlit-components>=0.1.81",
+    "httpx>=0.28.1",
+    "pypdf>=6.4.1",
+    "python-dotenv>=1.2.1",
+    "requests>=2.32.5",
+    "starlette>=0.50.0",
+    "streamlit>=1.52.1",
+    "uvicorn>=0.38.0",
+    "zeep>=4.3.2",
+]

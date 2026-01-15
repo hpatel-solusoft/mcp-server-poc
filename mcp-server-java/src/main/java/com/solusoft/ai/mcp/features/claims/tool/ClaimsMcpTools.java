@@ -13,6 +13,8 @@ import org.springframework.stereotype.Service;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.solusoft.ai.mcp.features.claims.model.CreateHealthClaimRequest;
+import com.solusoft.ai.mcp.features.claims.model.CreateMotorClaimRequest;
 import com.solusoft.ai.mcp.integration.case360.Case360Client;
 
 import jakarta.annotation.PostConstruct;
@@ -36,8 +38,6 @@ public class ClaimsMcpTools {
     public void initDatabase() {
         log.info("Entering initDatabase");
         try {
-            // Note: This table has fixed columns. If you want to store the extra "dynamic" fields
-            // locally, you might need to add a JSON column (e.g., 'additional_data TEXT') in the future.
             jdbcTemplate.execute("""
                 CREATE TABLE IF NOT EXISTS claims (
                     claim_id TEXT PRIMARY KEY,
@@ -91,8 +91,6 @@ public class ClaimsMcpTools {
             claimData.put("claim_type", claimType);
 
             String result = toJson(claimData);
-            log.debug("Return value (JSON): {}", result);
-            log.info("[TOOL] Exiting extract_claim_info");
             return result;
             
         } catch (Exception e) {
@@ -106,15 +104,20 @@ public class ClaimsMcpTools {
         log.debug("Input documentName: {}, base64Length: {}", documentName, (documentBase64 != null ? documentBase64.length() : 0));
         
         try {
-            if (documentBase64 == null || documentBase64.length() < 100) {
-                throw new IllegalArgumentException("Base64 string is too short. Injection failed?");
+            if (documentBase64 == null || documentBase64.isEmpty()) {
+                throw new IllegalArgumentException("Base64 string is empty.");
             }
 
+            // --- FIX 1: Handle Data URI Prefix ---
             if (documentBase64.contains(",")) {
                 documentBase64 = documentBase64.substring(documentBase64.indexOf(",") + 1);
             }
+
+            // --- FIX 2: Clean whitespace ---
+            documentBase64 = documentBase64.replaceAll("\\s+", "");
             
-            byte[] docBytes = Base64.getMimeDecoder().decode(documentBase64);
+            // --- FIX 3: Decode ---
+            byte[] docBytes = Base64.getDecoder().decode(documentBase64);
             log.info("✓ Decoded {} KB of data.", docBytes.length / 1024);
 
             BigDecimal templateId = case360Client.getFilestoreTemplateId("Claim Document");
@@ -123,9 +126,7 @@ public class ClaimsMcpTools {
             case360Client.uploadDocument(new BigDecimal(documentId), docBytes, documentName);
             
             log.info("✓ Document uploaded successfully to Case360 with ID: {}", documentId);
-            String result = toJson(Map.of("success", true, "document_id", documentId));
-            
-            return result;
+            return toJson(Map.of("success", true, "document_id", documentId));
             
         } catch (Exception e) {
             log.error("❌ Base64 Decoding/Upload Failed.", e);
@@ -133,29 +134,33 @@ public class ClaimsMcpTools {
         }
     }
     
+    // ----------------------------------------------------------------------------------
+    //  HYBRID APPROACH: Strict Record Signature -> Dynamic Map Logic
+    // ----------------------------------------------------------------------------------
+
     @McpTool(
         name = "create_motor_claim", 
-        description = "Creates a Motor Insurance Claim workflow. Use this ONLY if the document is related to a car, vehicle, or accident. " +
-                      "Input must be a JSON object containing ALL fields found in the document " +
-                      "(e.g., policy_number, vehicle_make, accident_location, third_party_driver, etc.)."
+        description = "Creates a Motor Insurance Claim. Requires vehicle and accident details."
     )
-    public String createMotorClaim(Map<String, Object> dynamicData) {
-        log.info("[TOOL] Entering create_motor_claim ");
-        log.debug("Raw Input: {}", dynamicData);
+    public String createMotorClaim(CreateMotorClaimRequest request) { // <--- 1. Strict Contract
+        log.info("[TOOL] Entering create_motor_claim");
         
         try {
-            // 1. Create Case in Case360
+            // 2. BRIDGE: Convert Record -> Map
+            // This ensures 'dynamicData' is never null and contains exactly what the AI sent
+            @SuppressWarnings("unchecked")
+            Map<String, Object> dynamicData = objectMapper.convertValue(request, Map.class);
+            log.info("Converted Request to Map: {}", dynamicData);
+
+            // 3. BACKEND: Use existing generic logic
             BigDecimal templateId = case360Client.getCaseFolderTemplateId("Motor Claim");
             String caseId = case360Client.createCase(templateId);
             
-            // 2. Normalize Keys (e.g. "vehicleModel" -> "VEHICLE_MODEL")
             Map<String, Object> updates = normalizeDataForBackend(dynamicData);
             
-            // 3. Add Workflow Defaults
             updates.put("CREATED_ON", Instant.now());
             updates.put("CLAIM_ID", System.currentTimeMillis());
             
-            // 4. Send All Fields to Backend
             case360Client.updateCaseFields(caseId, updates);
 
             String result = String.format("SUCCESS: Motor Claim created. Case ID: %s. Fields processed: %d.", caseId, updates.size());
@@ -170,27 +175,26 @@ public class ClaimsMcpTools {
     
     @McpTool(
         name = "create_healthcare_claim", 
-        description = "Creates a Healthcare/Medical Claim workflow. Use this ONLY for medical, hospital, doctor, or healthcare related claims. " +
-                      "Input must be a JSON object containing ALL fields found in the document " +
-                      "(e.g., claimant_name, diagnosis, hospital_name, physician, treatment_cost, etc.)."
+        description = "Creates a Healthcare/Medical Claim. Requires diagnosis and hospital details."
     )
-    public String createHealthClaim(Map<String, Object> dynamicData) {
-        log.info("[TOOL] Entering create_healthcare_claim ");
-        log.debug("Raw Input: {}", dynamicData);
+    public String createHealthClaim(CreateHealthClaimRequest request) { // <--- 1. Strict Contract
+        log.info("[TOOL] Entering create_healthcare_claim");
         
         try {
-            // 1. Create Case in Case360
+            // 2. BRIDGE: Convert Record -> Map
+            @SuppressWarnings("unchecked")
+            Map<String, Object> dynamicData = objectMapper.convertValue(request, Map.class);
+            log.info("Converted Request to Map: {}", dynamicData);
+
+            // 3. BACKEND: Use existing generic logic
             BigDecimal templateId = case360Client.getCaseFolderTemplateId("Healthcare Claim");
             String caseId = case360Client.createCase(templateId);
             
-            // 2. Normalize Keys (e.g. "physicianNotes" -> "PHYSICIAN_NOTES")
             Map<String, Object> updates = normalizeDataForBackend(dynamicData);
             
-            // 3. Add Workflow Defaults
             updates.put("CREATED_ON", Instant.now());
             updates.put("CLAIM_ID", System.currentTimeMillis());
             
-            // 4. Send All Fields to Backend
             case360Client.updateCaseFields(caseId, updates);
 
             String result = String.format("SUCCESS: Healthcare Claim created. Case ID: %s. Fields processed: %d.", caseId, updates.size());
@@ -219,9 +223,6 @@ public class ClaimsMcpTools {
             String caseId = workflow.containsKey("case_id") ? 
                             String.valueOf(workflow.get("case_id")) : null;
 
-            // Note: This SQL only inserts known columns. Dynamic fields not listed here will 
-            // be saved to Case360 (via the tools above) but NOT to this local SQLite table 
-            // unless you update the schema.
             String sql = "INSERT OR REPLACE INTO claims (claim_id, policy_number, claimant_name, " + 
                          "claim_type, claim_amount, diagnosis, incident_date, hospital, physician, " +
                          "vehicle_make, vehicle_model, vehicle_year, incident_type, workflow_id, " + 
@@ -245,26 +246,24 @@ public class ClaimsMcpTools {
     }
     
     // -------------------------------------------------------------------------
-    //  HELPER METHODS (Low-Code Key Normalization)
+    //  HELPER METHODS 
     // -------------------------------------------------------------------------
 
-    /**
-     * Converts incoming JSON map keys (camelCase or spaces) to Database/Case360 standard (UPPER_SNAKE_CASE).
-     * Example: "vehicleModel" -> "VEHICLE_MODEL", "Policy Number" -> "POLICY_NUMBER"
-     */
     private Map<String, Object> normalizeDataForBackend(Map<String, Object> input) {
+        log.info("Normalizing data for backend. Input keys: {}", input != null ? input.keySet() : "null");
+        if (input == null) {
+            log.warn("normalizeDataForBackend received null input. Returning empty map.");
+            return new HashMap<>();
+        }
+        
         Map<String, Object> output = new HashMap<>();
         
         for (Map.Entry<String, Object> entry : input.entrySet()) {
             String rawKey = entry.getKey();
             Object value = entry.getValue();
 
-            // 1. Transform Key
             String cleanKey = toSnakeCaseUpper(rawKey);
             
-            // 2. Handle Dates safely
-            // If the key suggests a date and the value is a string, try to parse it.
-            // If parsing fails (e.g., "Yesterday"), we send the raw string to let Case360 handle it.
             if (cleanKey.contains("DATE") && value instanceof String) {
                 try {
                     output.put(cleanKey, LocalDate.parse((String) value));
@@ -279,7 +278,6 @@ public class ClaimsMcpTools {
     }
 
     private String toSnakeCaseUpper(String str) {
-        // Regex to insert underscore before capital letters (camelCase -> camel_Case)
         String regex = "([a-z])([A-Z]+)";
         String replacement = "$1_$2";
         
@@ -305,12 +303,5 @@ public class ClaimsMcpTools {
         errorResponse.put("status", "FATAL_ERROR");
         errorResponse.put("message", "System failure in " + toolName + ". " + e.getMessage());
         return toJson(errorResponse);
-    }
-    
-    @McpTool(name = "tool_test", description = "testing tools call")
-    public void testTool() {
-       log.info("[TOOL] Entering tool_test");
-       log.info("Testing Tool Executed");
-       log.info("[TOOL] Exiting tool_test");
     }
 }

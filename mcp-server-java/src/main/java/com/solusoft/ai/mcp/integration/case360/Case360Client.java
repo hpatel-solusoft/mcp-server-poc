@@ -1,6 +1,11 @@
 package com.solusoft.ai.mcp.integration.case360;
 
 import java.math.BigDecimal;
+import java.time.LocalDate;
+import java.time.ZoneId;
+import java.time.ZonedDateTime;
+import java.time.format.DateTimeFormatter;
+import java.util.GregorianCalendar;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
@@ -8,9 +13,11 @@ import java.util.Set;
 
 import org.springframework.stereotype.Service;
 import org.springframework.ws.client.core.WebServiceTemplate;
+import org.springframework.ws.soap.client.SoapFaultClientException;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.solusoft.ai.mcp.exception.Case360IntegrationException;
 import com.solusoft.ai.mcp.integration.case360.soap.CreateCaseFolder;
 import com.solusoft.ai.mcp.integration.case360.soap.CreateCaseFolderResponse;
 import com.solusoft.ai.mcp.integration.case360.soap.CreateFileStore;
@@ -28,6 +35,11 @@ import com.solusoft.ai.mcp.integration.case360.soap.PutFile;
 import com.solusoft.ai.mcp.integration.case360.soap.SetCaseFolderFields;
 
 import jakarta.xml.bind.JAXBElement;
+
+import javax.xml.datatype.DatatypeConfigurationException;
+import javax.xml.datatype.DatatypeFactory;
+import javax.xml.datatype.XMLGregorianCalendar;
+
 import lombok.extern.slf4j.Slf4j;
 
 @Service
@@ -77,9 +89,9 @@ public class Case360Client {
             log.debug("Return value (Template ID): {}", result);
             return result;
 
-        } catch (Exception e) {
+        }   catch (Exception e) {
             log.error("Error in getCaseFolderTemplateId for templateName: {}", templateName, e);
-            throw new RuntimeException("Could not find Template ID for: " + templateName, e);
+            throw new Case360IntegrationException("Case360 Query Failed for: " + templateName, e);
         }
     }
     
@@ -118,7 +130,7 @@ public class Case360Client {
 
         } catch (Exception e) {
             log.error("Error in getFilestoreTemplateId for templateName: {}", templateName, e);
-            throw new RuntimeException("Could not find Template ID for: " + templateName, e);
+            throw new Case360IntegrationException("Case360 Query Failed for: " + templateName, e);
         }
     }
 
@@ -145,7 +157,7 @@ public class Case360Client {
 
         } catch (Exception e) {
             log.error("Error in createCase for templateId: {}", templateId, e);
-            throw e; 
+            throw new Case360IntegrationException("Filestore creation failed for Template ID : " + templateId, e); 
         }
     }
 
@@ -154,16 +166,16 @@ public class Case360Client {
      * Handles Dynamic Fields: Any key in 'updates' that does NOT exist in the case definition
      * will be bundled into a JSON string and saved to 'ADDITIONAL_DATA'.
      */
-    public void updateCaseFields(String caseId, Map<String, Object> updates) {
+    public void updateCaseFields(String strCaseId, Map<String, Object> updates) {
         log.info("Entering updateCaseFields");
-        log.debug("Input caseId: {}, updates: {}", caseId, updates);
+        log.info("Input caseId: {}, updates: {}", strCaseId, updates);
         
         try {
-            BigDecimal caseIdBd = new BigDecimal(caseId);
+            BigDecimal caseId = new BigDecimal(strCaseId);
 
             // A. GET Existing Fields
             var getRequest = new GetCaseFolderFields();
-            getRequest.setCaseFolderId(caseIdBd);
+            getRequest.setCaseFolderId(caseId);
             
             JAXBElement<GetCaseFolderFields> getRequestElement = 
                     objectFactory.createGetCaseFolderFields(getRequest);
@@ -173,13 +185,54 @@ public class Case360Client {
                 (JAXBElement<GetCaseFolderFieldsResponse>) webServiceTemplate.marshalSendAndReceive(getRequestElement);
             
             FmsRowTO fields = getResponseElement.getValue().getReturn();
-            var serverFieldList = fields.getFieldList();
+            FmsRowTO newFields = getResponseElement.getValue().getReturn();
 
             // B. TRACKING & MODIFYING
             Set<String> processedKeys = new HashSet<>();
             FmsFieldTO additionalDataField = null;
-            boolean isModified = false;
-
+            
+            
+            for(FmsFieldTO field:newFields.getFieldList()) {
+            	if ("ADDITIONAL_DATA".equalsIgnoreCase(field.getFieldName())) {
+                    additionalDataField = field;
+                }
+            	
+				if(updates.containsKey(field.getFieldName())) {
+					Object value = updates.get(field.getFieldName());
+					processedKeys.add(field.getFieldName());
+					if(value!=null) {
+						field.setModified(true);
+						field.setNullValue(false);
+						switch (field.getDataType()) {
+			            case 4 -> {
+			                field.setStringValue(String.valueOf(value));
+			                // Resetting other potential types (Case360 usually requires nulling the others)
+			                field.setBigDecimalValue(null); 
+			            }
+			            case 5 -> {
+			            	if (value instanceof java.time.LocalDate) {
+			            		LocalDate localDate =   LocalDate.parse(value.toString()) ;
+			            		ZonedDateTime zdt = localDate.atStartOfDay(ZoneId.systemDefault());
+				            	field.setCalendarValue(DatatypeFactory.newInstance().newXMLGregorianCalendar(GregorianCalendar.from(zdt)));
+			            	}
+			            	
+			            }
+			            case 2 -> 
+		                	field.setIntValue(Integer.valueOf(value.toString()));
+			            case 1 -> 
+		                	field.setBooleanValue(Boolean.valueOf(value.toString()));
+			            case 6 -> 
+			                field.setBigDecimalValue(objectFactory.createFmsFieldTOBigDecimalValue(new BigDecimal(value.toString())));
+			            default -> 
+			                field.setStringValue(value.toString());
+						}
+					}
+				} else {
+					 additionalDataField = field;
+				}
+            	
+            }
+            /*
             // Pass 1: Update known columns and locate the ADDITIONAL_DATA field holder
             for (FmsFieldTO field : serverFieldList) {
                 String fieldName = field.getFieldName();
@@ -195,42 +248,38 @@ public class Case360Client {
                     isModified = true;
                 }
             }
-
+ 
+            */
             // Pass 2: Handle Dynamic "Leftover" Fields
             // Create a map of fields that were NOT found in the main server list
-            Map<String, Object> dynamicLeftovers = new HashMap<>(updates);
+            Map<String, Object> additionalFields = new HashMap<>(updates);
             // Remove keys we successfully processed in Pass 1
-            processedKeys.forEach(dynamicLeftovers::remove);
-
-            if (!dynamicLeftovers.isEmpty()) {
+            processedKeys.forEach(additionalFields::remove);
+           
+            if (!additionalFields.isEmpty()) {
                 if (additionalDataField != null) {
                     try {
                         // Serialize leftovers to JSON string
-                        String jsonValue = objectMapper.writeValueAsString(dynamicLeftovers);
-                        
-                        log.info("Bundling {} dynamic fields into ADDITIONAL_DATA", dynamicLeftovers.size());
-                        applyValueToField(additionalDataField, jsonValue);
-                        isModified = true;
+                        String jsonValue = objectMapper.writeValueAsString(additionalFields);
+                        additionalDataField.setStringValue(jsonValue);
+                        additionalDataField.setModified(true);
+                        additionalDataField.setNullValue(false);
+                        log.info("Bundling {} dynamic fields into ADDITIONAL_DATA", additionalFields.size());
                         
                     } catch (JsonProcessingException e) {
                         log.error("Failed to serialize dynamic fields to JSON", e);
                         // We continue, so we don't block the valid fields from saving
                     }
                 } else {
-                    log.warn("Dynamic fields found {} but 'ADDITIONAL_DATA' field is missing in Case360 template definition.", dynamicLeftovers.keySet());
+                    log.warn("Dynamic fields found {} but 'ADDITIONAL_DATA' field is missing in Case360 template definition.", additionalFields.keySet());
                 }
-            }
-
-            if (!isModified) {
-                log.info("No fields modified for caseId: {}. Exiting updateCaseFields.", caseId);
-                return; 
             }
 
             // C. SET (Save) back to Server
             var setRequest = new SetCaseFolderFields();
-            setRequest.setCaseFolderInstanceId(caseIdBd);
+      	  	setRequest.setCaseFolderInstanceId(caseId);
             setRequest.setOriginalCaseFolderFields(fields);
-            setRequest.setNewCaseFolderFields(fields);
+            setRequest.setNewCaseFolderFields(newFields);
             setRequest.setBForceUpdate(true); 
             
             JAXBElement<SetCaseFolderFields> setRequestElement = 
@@ -240,36 +289,8 @@ public class Case360Client {
             
             log.info("Exiting updateCaseFields successfully");
 
-        } catch (Exception e) {
-            log.error("Error in updateCaseFields for caseId: {}", caseId, e);
-            throw e;
-        }
-    }
-
-    
-    private void applyValueToField(FmsFieldTO field, Object value) {
-        field.setModified(true);
-        field.setNullValue(false);
-
-        // Java 21 Pattern Matching for Switch
-        switch (value) {
-            case String s -> {
-                field.setStringValue(s);
-                // Resetting other potential types (Case360 usually requires nulling the others)
-                field.setBigDecimalValue(null); 
-            }
-            case BigDecimal bd -> 
-                field.setBigDecimalValue(objectFactory.createFmsFieldTOBigDecimalValue(bd));
-            case Integer i -> 
-                field.setBigDecimalValue(objectFactory.createFmsFieldTOBigDecimalValue(BigDecimal.valueOf(i)));
-            case Double d -> 
-                field.setBigDecimalValue(objectFactory.createFmsFieldTOBigDecimalValue(BigDecimal.valueOf(d)));
-            case Boolean b -> 
-                field.setStringValue(String.valueOf(b)); // Defaulting boolean to String "true"/"false"
-            case null -> 
-                field.setNullValue(true);
-            default -> 
-                field.setStringValue(value.toString());
+        }  catch (Exception e) {
+        	throw new Case360IntegrationException("Fields update failed for Case ID: " + strCaseId, e);
         }
     }
     
@@ -294,9 +315,9 @@ public class Case360Client {
             log.debug("Return value (FileStore ID): {}", result);
             return result;
 
-        } catch (Exception e) {
+        }  catch (Exception e) {
             log.error("Error in createFileStore for templateId: {}", templateId, e);
-            throw new RuntimeException("Could not create filestore instance for: " + templateId, e);
+            throw new Case360IntegrationException("Filestore creation failed for Template ID : " + templateId, e);
         }
     }
     
@@ -317,9 +338,27 @@ public class Case360Client {
             
             log.info("Exiting uploadDocument successfully");
 
-        } catch (Exception e) {
+        }  catch (Exception e) {
             log.error("Error in uploadDocument for docId: {}", docId, e);
-            throw e;
+            throw new Case360IntegrationException("Upload failed for Document ID: " + docId, e);
         }
+    }
+
+    public XMLGregorianCalendar stringToGregorian(String dateString) throws DatatypeConfigurationException {
+        // 1. Define your format (e.g., yyyy-MM-dd)
+    	if(dateString!=null && !dateString.isEmpty()) {
+	        DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd");
+	
+	        // 2. Parse to LocalDate (or LocalDateTime if you have time info)
+	        LocalDate localDate = LocalDate.parse(dateString, formatter);
+	
+	        // 3. Convert to ZonedDateTime (Required for GregorianCalendar)
+	        ZonedDateTime zdt = localDate.atStartOfDay(ZoneId.systemDefault());
+	
+	        // 4. Create GregorianCalendar directly
+	        
+	        return DatatypeFactory.newInstance().newXMLGregorianCalendar(GregorianCalendar.from(zdt));
+    	} 
+    	return null;
     }
 }

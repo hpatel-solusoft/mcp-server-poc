@@ -5,7 +5,7 @@
       "transport": "sse"
     },
     "claims-processor-java": {
-      "url": "http://localhost:9090/mcp/sse",
+      "url": "http://localhost:9090/sse",
       "transport": "sse"
     }
     

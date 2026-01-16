@@ -28,9 +28,14 @@ public record CreateMotorClaimRequest(
     @JsonPropertyDescription("Optional:Type of the Incident")
     String incidentType,
     
+    @JsonPropertyDescription("Optional: Vehicle Model") 
+    String vehicleMake,
+    
+    @JsonPropertyDescription("Optional: License Plate Number")
+    String licensePlateNumber,
+    
     @JsonPropertyDescription("Optional: Priority for the claim")
     String priority
-    
     
 ) {}
 

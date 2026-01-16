@@ -1,11 +1,17 @@
 package com.solusoft.ai.mcp.integration.case360;
 
-import static org.junit.jupiter.api.Assertions.*;
+import static org.junit.jupiter.api.Assertions.assertArrayEquals;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.Mockito.*;
+import static org.mockito.Mockito.atLeast;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
 import java.math.BigDecimal;
-import java.util.List;
+
 import javax.xml.namespace.QName;
 
 import org.junit.jupiter.api.BeforeEach;
@@ -15,22 +21,22 @@ import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
 import org.springframework.ws.client.core.WebServiceTemplate;
 
-import com.solusoft.ai.mcp.integration.case360.soap.CreateCaseFolderResponse;
-import com.solusoft.ai.mcp.integration.case360.soap.CreateFileStoreResponse;
-import com.solusoft.ai.mcp.integration.case360.soap.DoQueryByScriptNameResponse;
-import com.solusoft.ai.mcp.integration.case360.soap.FmsFieldTO;
-import com.solusoft.ai.mcp.integration.case360.soap.FmsRowSetTOArray;
-import com.solusoft.ai.mcp.integration.case360.soap.FmsRowSetTO;
-import com.solusoft.ai.mcp.integration.case360.soap.FmsRowTO;
-import com.solusoft.ai.mcp.integration.case360.soap.GetCaseFolderFieldsResponse;
-import com.solusoft.ai.mcp.integration.case360.soap.PutFileResponse;
-import com.solusoft.ai.mcp.integration.case360.soap.DoQueryByScriptName;
-import com.solusoft.ai.mcp.integration.case360.soap.FieldPropertiesTO;
-import com.solusoft.ai.mcp.integration.case360.soap.FieldPropertiesTOArray;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.solusoft.ai.mcp.integration.case360.soap.CreateCaseFolder;
+import com.solusoft.ai.mcp.integration.case360.soap.CreateCaseFolderResponse;
 import com.solusoft.ai.mcp.integration.case360.soap.CreateFileStore;
+import com.solusoft.ai.mcp.integration.case360.soap.CreateFileStoreResponse;
+import com.solusoft.ai.mcp.integration.case360.soap.DoQueryByScriptName;
+import com.solusoft.ai.mcp.integration.case360.soap.DoQueryByScriptNameResponse;
+import com.solusoft.ai.mcp.integration.case360.soap.FieldPropertiesTO;
+import com.solusoft.ai.mcp.integration.case360.soap.FieldPropertiesTOArray;
+import com.solusoft.ai.mcp.integration.case360.soap.FmsFieldTO;
+import com.solusoft.ai.mcp.integration.case360.soap.FmsRowSetTO;
+import com.solusoft.ai.mcp.integration.case360.soap.FmsRowSetTOArray;
+import com.solusoft.ai.mcp.integration.case360.soap.FmsRowTO;
+import com.solusoft.ai.mcp.integration.case360.soap.GetCaseFolderFieldsResponse;
 import com.solusoft.ai.mcp.integration.case360.soap.PutFile;
+import com.solusoft.ai.mcp.integration.case360.soap.PutFileResponse;
 
 import jakarta.xml.bind.JAXBElement;
 

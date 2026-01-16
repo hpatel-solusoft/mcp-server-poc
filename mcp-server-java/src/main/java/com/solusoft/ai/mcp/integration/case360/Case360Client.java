@@ -6,16 +6,15 @@ import java.time.ZoneId;
 import java.time.ZonedDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.GregorianCalendar;
-import java.util.HashMap;
-import java.util.HashSet;
 import java.util.Map;
-import java.util.Set;
+
+import javax.xml.datatype.DatatypeConfigurationException;
+import javax.xml.datatype.DatatypeFactory;
+import javax.xml.datatype.XMLGregorianCalendar;
 
 import org.springframework.stereotype.Service;
 import org.springframework.ws.client.core.WebServiceTemplate;
-import org.springframework.ws.soap.client.SoapFaultClientException;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.solusoft.ai.mcp.exception.Case360IntegrationException;
 import com.solusoft.ai.mcp.integration.case360.soap.CreateCaseFolder;
@@ -35,11 +34,6 @@ import com.solusoft.ai.mcp.integration.case360.soap.PutFile;
 import com.solusoft.ai.mcp.integration.case360.soap.SetCaseFolderFields;
 
 import jakarta.xml.bind.JAXBElement;
-
-import javax.xml.datatype.DatatypeConfigurationException;
-import javax.xml.datatype.DatatypeFactory;
-import javax.xml.datatype.XMLGregorianCalendar;
-
 import lombok.extern.slf4j.Slf4j;
 
 @Service
@@ -187,95 +181,46 @@ public class Case360Client {
             FmsRowTO fields = getResponseElement.getValue().getReturn();
             FmsRowTO newFields = getResponseElement.getValue().getReturn();
 
-            // B. TRACKING & MODIFYING
-            Set<String> processedKeys = new HashSet<>();
-            FmsFieldTO additionalDataField = null;
-            
-            
-            for(FmsFieldTO field:newFields.getFieldList()) {
-            	if ("ADDITIONAL_DATA".equalsIgnoreCase(field.getFieldName())) {
-                    additionalDataField = field;
-                }
-            	
-				if(updates.containsKey(field.getFieldName())) {
-					Object value = updates.get(field.getFieldName());
-					processedKeys.add(field.getFieldName());
-					if(value!=null) {
-						field.setModified(true);
-						field.setNullValue(false);
-						switch (field.getDataType()) {
-			            case 4 -> {
-			                field.setStringValue(String.valueOf(value));
-			                // Resetting other potential types (Case360 usually requires nulling the others)
-			                field.setBigDecimalValue(null); 
-			            }
-			            case 5 -> {
-			            	if (value instanceof java.time.LocalDate) {
-			            		LocalDate localDate =   LocalDate.parse(value.toString()) ;
-			            		ZonedDateTime zdt = localDate.atStartOfDay(ZoneId.systemDefault());
-				            	field.setCalendarValue(DatatypeFactory.newInstance().newXMLGregorianCalendar(GregorianCalendar.from(zdt)));
-			            	}
-			            	
-			            }
-			            case 2 -> 
-		                	field.setIntValue(Integer.valueOf(value.toString()));
-			            case 1 -> 
-		                	field.setBooleanValue(Boolean.valueOf(value.toString()));
-			            case 6 -> 
-			                field.setBigDecimalValue(objectFactory.createFmsFieldTOBigDecimalValue(new BigDecimal(value.toString())));
-			            default -> 
-			                field.setStringValue(value.toString());
-						}
-					}
-				} else {
-					 additionalDataField = field;
-				}
-            	
+            DatatypeFactory datatypeFactory;
+            try {
+                datatypeFactory = DatatypeFactory.newInstance();
+            } catch (DatatypeConfigurationException e) {
+                throw new RuntimeException("DatatypeFactory init failed", e);
             }
-            /*
-            // Pass 1: Update known columns and locate the ADDITIONAL_DATA field holder
-            for (FmsFieldTO field : serverFieldList) {
+            ZoneId zoneId = ZoneId.systemDefault();
+
+
+            for (FmsFieldTO field : newFields.getFieldList()) {
                 String fieldName = field.getFieldName();
-                
-                // Keep a reference to the special field for dynamic data
-                if ("ADDITIONAL_DATA".equalsIgnoreCase(fieldName)) {
-                    additionalDataField = field;
-                }
 
                 if (updates.containsKey(fieldName)) {
-                    applyValueToField(field, updates.get(fieldName));
-                    processedKeys.add(fieldName);
-                    isModified = true;
-                }
-            }
- 
-            */
-            // Pass 2: Handle Dynamic "Leftover" Fields
-            // Create a map of fields that were NOT found in the main server list
-            Map<String, Object> additionalFields = new HashMap<>(updates);
-            // Remove keys we successfully processed in Pass 1
-            processedKeys.forEach(additionalFields::remove);
-           
-            if (!additionalFields.isEmpty()) {
-                if (additionalDataField != null) {
-                    try {
-                        // Serialize leftovers to JSON string
-                        String jsonValue = objectMapper.writeValueAsString(additionalFields);
-                        additionalDataField.setStringValue(jsonValue);
-                        additionalDataField.setModified(true);
-                        additionalDataField.setNullValue(false);
-                        log.info("Bundling {} dynamic fields into ADDITIONAL_DATA", additionalFields.size());
+                    Object value = updates.get(fieldName);
+
+                    if (value != null) {
+                        field.setModified(true);
+                        field.setNullValue(false);
                         
-                    } catch (JsonProcessingException e) {
-                        log.error("Failed to serialize dynamic fields to JSON", e);
-                        // We continue, so we don't block the valid fields from saving
+                        switch (field.getDataType()) {
+                            case 4 -> { 
+                                field.setStringValue(String.valueOf(value));
+                                field.setBigDecimalValue(null);
+                            }
+                            case 5 -> { 
+                                if (value instanceof java.time.LocalDate localDate) {
+                                    ZonedDateTime zdt = localDate.atStartOfDay(zoneId);
+                                    field.setCalendarValue(datatypeFactory.newXMLGregorianCalendar(GregorianCalendar.from(zdt)));
+                                }
+                            }
+                            case 2 -> field.setIntValue(Integer.valueOf(value.toString()));
+                            case 1 -> field.setBooleanValue(Boolean.valueOf(value.toString()));
+                            case 6 -> field.setBigDecimalValue(objectFactory.createFmsFieldTOBigDecimalValue(new BigDecimal(value.toString())));
+                            default -> field.setStringValue(value.toString());
+                        }
                     }
-                } else {
-                    log.warn("Dynamic fields found {} but 'ADDITIONAL_DATA' field is missing in Case360 template definition.", additionalFields.keySet());
-                }
+                } 
             }
 
-            // C. SET (Save) back to Server
+
             var setRequest = new SetCaseFolderFields();
       	  	setRequest.setCaseFolderInstanceId(caseId);
             setRequest.setOriginalCaseFolderFields(fields);

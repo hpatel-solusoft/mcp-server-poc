@@ -53,7 +53,7 @@ public class ClaimsMcpTools {
                     vehicle_model TEXT,
                     vehicle_year INTEGER,
                     incident_type TEXT,
-                    workflow_id TEXT,
+                    claims_id TEXT,
                     case_id TEXT,
                     status TEXT,
                     created_at TEXT,
@@ -85,12 +85,16 @@ public class ClaimsMcpTools {
                     claimData.put(parts[0].trim().toLowerCase().replace(" ", "_"), parts[1].trim());
                 }
             }
-
+            
             String lowerText = documentText.toLowerCase();
-            String claimType = (lowerText.contains("vehicle") || lowerText.contains("car")) ? "motor" : "healthcare";
+            
+            
+            /*String claimType = (lowerText.contains("vehicle") || lowerText.contains("car")) ? "motor" : "healthcare";
             claimData.put("claim_type", claimType);
-
+            */
+            
             String result = toJson(claimData);
+            log.debug("Return value (JSON): {}", result);
             return result;
             
         } catch (Exception e) {
@@ -108,15 +112,12 @@ public class ClaimsMcpTools {
                 throw new IllegalArgumentException("Base64 string is empty.");
             }
 
-            // --- FIX 1: Handle Data URI Prefix ---
             if (documentBase64.contains(",")) {
                 documentBase64 = documentBase64.substring(documentBase64.indexOf(",") + 1);
             }
 
-            // --- FIX 2: Clean whitespace ---
             documentBase64 = documentBase64.replaceAll("\\s+", "");
             
-            // --- FIX 3: Decode ---
             byte[] docBytes = Base64.getDecoder().decode(documentBase64);
             log.info("✓ Decoded {} KB of data.", docBytes.length / 1024);
 
@@ -134,9 +135,6 @@ public class ClaimsMcpTools {
         }
     }
     
-    // ----------------------------------------------------------------------------------
-    //  HYBRID APPROACH: Strict Record Signature -> Dynamic Map Logic
-    // ----------------------------------------------------------------------------------
 
     @McpTool(
         name = "create_motor_claim", 
@@ -144,7 +142,7 @@ public class ClaimsMcpTools {
     )
     public String createMotorClaim(CreateMotorClaimRequest request) { // <--- 1. Strict Contract
         log.info("[TOOL] Entering create_motor_claim");
-        
+        log.debug("Claim Data: {}", request);
         try {
             // 2. BRIDGE: Convert Record -> Map
             // This ensures 'dynamicData' is never null and contains exactly what the AI sent
@@ -179,7 +177,7 @@ public class ClaimsMcpTools {
     )
     public String createHealthClaim(CreateHealthClaimRequest request) { // <--- 1. Strict Contract
         log.info("[TOOL] Entering create_healthcare_claim");
-        
+        log.debug("Claim Data: {}", request);
         try {
             // 2. BRIDGE: Convert Record -> Map
             @SuppressWarnings("unchecked")

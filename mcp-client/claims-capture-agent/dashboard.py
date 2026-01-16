@@ -50,6 +50,17 @@ def load_data():
     """
     df = pd.read_sql_query(query, conn)
     conn.close()
+
+    # --- FIX START ---
+    if not df.empty and 'claim_amount' in df.columns:
+        # 1. Ensure data is string format so we can strip symbols
+        # 2. Remove '$' and ',' (e.g., "$1,200.00" -> "1200.00")
+        df['claim_amount'] = df['claim_amount'].astype(str).str.replace('$', '', regex=False).str.replace(',', '', regex=False)
+        
+        # 3. Convert to proper numbers (invalid text becomes 0.0)
+        df['claim_amount'] = pd.to_numeric(df['claim_amount'], errors='coerce').fillna(0.0)
+    # --- FIX END ---
+
     return df
 
 # --- SIDEBAR ---
@@ -131,7 +142,7 @@ else:
             st.info("📂 **Case Info**")
             st.write(f"**Claimant:** {record['claimant_name']}")
             st.write(f"**Policy:** {record['policy_number']}")
-            st.write(f"**Workflow ID:** `{record['workflow_id']}`")
+            st.write(f"**Claim ID:** `{record['workflow_id']}`")
             st.write(f"**Case ID:** `{record['case_id']}`")
             
         with d_col2:

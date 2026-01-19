@@ -1,5 +1,9 @@
 package com.solusoft.ai.mcp.config;
 
+import java.sql.SQLException;
+import java.util.Arrays;
+import java.util.List;
+
 import org.postgresql.util.PGobject;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.core.convert.converter.Converter;
@@ -8,10 +12,6 @@ import org.springframework.data.jdbc.repository.config.AbstractJdbcConfiguration
 import org.springframework.data.relational.core.dialect.Dialect;
 import org.springframework.data.relational.core.dialect.PostgresDialect;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcOperations;
-
-import java.sql.SQLException;
-import java.util.Arrays;
-import java.util.List;
 
 @Configuration
 public class McpJdbcConfig extends AbstractJdbcConfiguration {

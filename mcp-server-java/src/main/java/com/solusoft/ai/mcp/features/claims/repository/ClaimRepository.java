@@ -1,13 +1,13 @@
 package com.solusoft.ai.mcp.features.claims.repository;
 
+import java.util.Optional;
+
 import org.springframework.data.jdbc.repository.query.Modifying;
 import org.springframework.data.jdbc.repository.query.Query;
 import org.springframework.data.repository.ListCrudRepository;
 import org.springframework.data.repository.query.Param;
 
 import com.solusoft.ai.mcp.features.claims.model.Claim;
-
-import java.util.Optional;
 
 public interface ClaimRepository extends ListCrudRepository<Claim, Integer> {
     

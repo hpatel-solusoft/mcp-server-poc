@@ -1,12 +1,10 @@
 package com.solusoft.ai.mcp.features.claims.model;
+import java.math.BigDecimal;
+import java.time.LocalDate;
+
 import com.fasterxml.jackson.annotation.JsonClassDescription;
 import com.fasterxml.jackson.annotation.JsonFormat;
 import com.fasterxml.jackson.annotation.JsonInclude;
-import com.fasterxml.jackson.annotation.JsonProperty;
-import com.fasterxml.jackson.annotation.JsonPropertyDescription;
-
-import java.math.BigDecimal;
-import java.time.LocalDate;
 
 // Only include non-null fields in the JSON schema generated for the LLM
 @JsonClassDescription("Flat arguments for storing a claim.")

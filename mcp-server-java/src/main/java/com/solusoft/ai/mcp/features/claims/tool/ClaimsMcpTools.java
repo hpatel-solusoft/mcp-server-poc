@@ -9,7 +9,6 @@ import java.util.Map;
 import java.util.Optional;
 
 import org.springaicommunity.mcp.annotation.McpTool;
-import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
@@ -21,7 +20,6 @@ import com.solusoft.ai.mcp.features.claims.model.StoreClaimRequest;
 import com.solusoft.ai.mcp.features.claims.repository.ClaimRepository;
 import com.solusoft.ai.mcp.integration.case360.Case360Client;
 
-import jakarta.annotation.PostConstruct;
 import lombok.extern.slf4j.Slf4j;
 
 @Service

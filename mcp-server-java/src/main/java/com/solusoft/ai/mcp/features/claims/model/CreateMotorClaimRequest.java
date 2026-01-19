@@ -1,5 +1,8 @@
 package com.solusoft.ai.mcp.features.claims.model;
 
+import java.math.BigDecimal;
+import java.time.LocalDate;
+
 import com.fasterxml.jackson.annotation.JsonClassDescription;
 import com.fasterxml.jackson.annotation.JsonPropertyDescription;
 
@@ -14,10 +17,10 @@ public record CreateMotorClaimRequest(
     String policyNumber,
 
     @JsonPropertyDescription("The estimated cost of damage or amount claimed")
-    Double claimAmount,
+    BigDecimal claimAmount,
 
     @JsonPropertyDescription("The date when the accident occurred (YYYY-MM-DD)")
-    String incidentDate, // Keeping as String is safer for LLMs, we parse it later
+    LocalDate incidentDate, // Keeping as String is safer for LLMs, we parse it later
 
     @JsonPropertyDescription("A brief description of the accident and damage")
     String description,

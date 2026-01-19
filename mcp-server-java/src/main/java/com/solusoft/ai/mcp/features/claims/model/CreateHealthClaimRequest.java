@@ -1,5 +1,8 @@
 package com.solusoft.ai.mcp.features.claims.model;
 
+import java.math.BigDecimal;
+import java.time.LocalDate;
+
 import com.fasterxml.jackson.annotation.JsonClassDescription;
 
 // 2. Health Claim Input (Example of a second domain)
@@ -7,8 +10,8 @@ import com.fasterxml.jackson.annotation.JsonClassDescription;
 public record CreateHealthClaimRequest(
     String claimantName,
     String policyNumber,
-    Double claimAmount,
-    String incidentDate,
+    BigDecimal claimAmount,
+    LocalDate incidentDate,
     String diagnosis,
     String hospitalName,
     String description,

@@ -20,6 +20,7 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
 import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.util.Base64;
 import java.util.HashMap;
 import java.util.Map;
@@ -27,12 +28,14 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.solusoft.ai.mcp.features.claims.model.CreateHealthClaimRequest;
 import com.solusoft.ai.mcp.features.claims.model.CreateMotorClaimRequest;
+import com.solusoft.ai.mcp.features.claims.repository.ClaimRepository;
 import com.solusoft.ai.mcp.integration.case360.Case360Client;
 
 public class ClaimsMcpToolsTest {
 
     @Mock
-    private JdbcTemplate jdbcTemplate;
+    private ClaimRepository claimRepository;
+    
     @Mock
     private Case360Client case360Client;
 
@@ -40,11 +43,12 @@ public class ClaimsMcpToolsTest {
     
     private ClaimsMcpTools tools;
 
+    
     @BeforeEach
     public void setup() {
         MockitoAnnotations.openMocks(this);
         objectMapper = new ObjectMapper();
-        tools = new ClaimsMcpTools(jdbcTemplate, case360Client, objectMapper);
+        tools = new ClaimsMcpTools(claimRepository, case360Client, objectMapper);
     }
 
     @Test
@@ -114,8 +118,8 @@ public class ClaimsMcpToolsTest {
     	CreateMotorClaimRequest motorReq = new CreateMotorClaimRequest(
 		    "Alice",
 		    "POL-0001",
-		    1500.0,
-		    java.time.LocalDate.now().toString(),
+		    new BigDecimal(1500.0),
+		    java.time.LocalDate.now(),
 		    "Rear end collision",
 		    null, // claimDocId is null
 		    "accident",
@@ -138,7 +142,7 @@ public class ClaimsMcpToolsTest {
     public void testCreateHealthClaim_success() throws Exception {
     	
     	CreateHealthClaimRequest healthReq = new CreateHealthClaimRequest(
-		    "Bob","POL-9999",2000.0,java.time.LocalDate.now().toString(),"Flu","Saint Hospital",null,"Medical expenses","illness","Dr. Who","Notes","normal","Summary");
+		    "Bob","POL-9999",new BigDecimal(2000.0),java.time.LocalDate.now(),"Flu","Saint Hospital",null,"Medical expenses","illness","Dr. Who","Notes","normal","Summary");
 
         when(case360Client.getCaseFolderTemplateId(any())).thenReturn(BigDecimal.TEN);
         when(case360Client.createCase(any())).thenReturn("CASE-999");
@@ -206,8 +210,8 @@ public class ClaimsMcpToolsTest {
         // 4) Build CreateMotorClaimRequest using extracted fields + docId
         String claimant = claimMap.containsKey("claimant_name") ? String.valueOf(claimMap.get("claimant_name")) : "Unknown";
         String policy = claimMap.containsKey("policy_number") ? String.valueOf(claimMap.get("policy_number")) : "POL-CHAIN";
-        Double amount = claimMap.containsKey("claim_amount") ? Double.valueOf(String.valueOf(claimMap.get("claim_amount"))) : 1200.0;
-        String incidentDate = claimMap.containsKey("incident_date") ? String.valueOf(claimMap.get("incident_date")) : "2025-01-01";
+        BigDecimal amount = claimMap.containsKey("claim_amount") ? new BigDecimal(String.valueOf(claimMap.get("claim_amount"))) : new BigDecimal(1200.0);
+        LocalDate incidentDate = claimMap.containsKey("incident_date") ? LocalDate.parse(String.valueOf(claimMap.get("incident_date"))) : LocalDate.now();
         String description = claimMap.containsKey("description") ? String.valueOf(claimMap.get("description")) : "No desc";
 
         
@@ -286,8 +290,8 @@ public class ClaimsMcpToolsTest {
         // Build health request
         String claimant = claimMap.containsKey("claimant_name") ? String.valueOf(claimMap.get("claimant_name")) : "Unknown";
         String policy = claimMap.containsKey("policy_number") ? String.valueOf(claimMap.get("policy_number")) : "POL-HC-1";
-        Double amount = claimMap.containsKey("claim_amount") ? Double.valueOf(String.valueOf(claimMap.get("claim_amount"))) : 3000.0;
-        String incidentDate = claimMap.containsKey("incident_date") ? String.valueOf(claimMap.get("incident_date")) : "2025-02-02";
+        BigDecimal amount = claimMap.containsKey("claim_amount") ? new BigDecimal(String.valueOf(claimMap.get("claim_amount"))) : new BigDecimal(3000.0);
+        LocalDate incidentDate = claimMap.containsKey("incident_date") ? LocalDate.parse(String.valueOf(claimMap.get("incident_date"))) : LocalDate.parse("2025-02-02");
 
         CreateHealthClaimRequest healthReq = new CreateHealthClaimRequest( claimant, policy, amount, incidentDate, "Sprain", "General Hospital", "Medical bills", docId, "accident", "Dr. House", "Notes", "high", "Treatment summary");
         

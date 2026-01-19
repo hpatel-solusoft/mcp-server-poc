@@ -86,9 +86,9 @@
 	        <artifactId>spring-boot-starter-data-jdbc</artifactId>
 	    </dependency>
 	    <dependency>
-	        <groupId>org.xerial</groupId>
-	        <artifactId>sqlite-jdbc</artifactId>
-	    </dependency>
+		    <groupId>org.postgresql</groupId>
+		    <artifactId>postgresql</artifactId>
+		</dependency>
 	    <dependency>
 	        <groupId>com.fasterxml.jackson.core</groupId>
 	        <artifactId>jackson-databind</artifactId>
@@ -102,6 +102,14 @@
 	        <groupId>org.springframework.cloud</groupId>
 	        <artifactId>spring-cloud-starter-vault-config</artifactId>
 	    </dependency>
+	    <dependency>
+		    <groupId>org.flywaydb</groupId>
+		    <artifactId>flyway-core</artifactId>
+		</dependency>
+		<dependency>
+		    <groupId>org.flywaydb</groupId>
+		    <artifactId>flyway-database-postgresql</artifactId>
+		</dependency>
 	</dependencies>
 
 	<dependencyManagement>

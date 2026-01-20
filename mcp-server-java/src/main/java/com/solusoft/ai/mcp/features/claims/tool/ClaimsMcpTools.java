@@ -38,35 +38,7 @@ public class ClaimsMcpTools {
 
     /*@PostConstruct
     public void initDatabase() {
-        log.info("Entering initDatabase");
-        try {
-            jdbcTemplate.execute("""
-                CREATE TABLE IF NOT EXISTS claims (
-                    claim_id TEXT PRIMARY KEY,
-                    policy_number TEXT,
-                    claimant_name TEXT,
-                    claim_type TEXT,
-                    claim_amount REAL,
-                    diagnosis TEXT,
-                    incident_date TEXT,
-                    hospital TEXT,
-                    physician TEXT,
-                    vehicle_make TEXT,
-                    vehicle_model TEXT,
-                    vehicle_year INTEGER,
-                    incident_type TEXT,
-                    claims_id TEXT,
-                    case_id TEXT,
-                    status TEXT,
-                    created_at TEXT,
-                    processed_at TEXT
-                )
-            """);
-            log.info("✓ Database initialized");
-        } catch (Exception e) {
-            log.error("Failed to initialize database", e);
-        }
-        log.info("Exiting initDatabase");
+        // ... (kept commented out as per input)
     }*/
     
     @McpTool(name = "extract_claim_info", description = "Extracts claim fields from raw document text. Returns JSON.")
@@ -90,17 +62,16 @@ public class ClaimsMcpTools {
             
             String lowerText = documentText.toLowerCase();
             
-            
             String claimType = (lowerText.contains("vehicle") || lowerText.contains("car")) ? "motor" : "healthcare";
             claimData.put("claim_type", claimType);
             
-            
             String result = toJson(claimData);
             log.debug("Return value (JSON): {}", result);
+            log.info("[TOOL] Exiting extract_claim_info");
             return result;
             
         } catch (Exception e) {
-            return handleError("extractClaimInfo", e);
+            return handleError("extract_claim_info", e);
         }
     }
     
@@ -121,7 +92,7 @@ public class ClaimsMcpTools {
             documentBase64 = documentBase64.replaceAll("\\s+", "");
             
             byte[] docBytes = Base64.getDecoder().decode(documentBase64);
-            log.info("✓ Decoded {} KB of data.", docBytes.length / 1024);
+            log.debug("✓ Decoded {} KB of data.", docBytes.length / 1024);
 
             BigDecimal templateId = case360Client.getFilestoreTemplateId("Claim Document");
             String documentId = case360Client.createFileStore(templateId);
@@ -129,11 +100,12 @@ public class ClaimsMcpTools {
             case360Client.uploadDocument(new BigDecimal(documentId), docBytes, documentName);
             
             log.info("✓ Document uploaded successfully to Case360 with ID: {}", documentId);
+            log.info("[TOOL] Exiting upload_document");
             return toJson(Map.of("success", true, "document_id", documentId));
             
         } catch (Exception e) {
             log.error("❌ Base64 Decoding/Upload Failed.", e);
-            return handleError("uploadDocument", e);
+            return handleError("upload_document", e);
         }
     }
     
@@ -142,34 +114,43 @@ public class ClaimsMcpTools {
         name = "create_motor_claim", 
         description = "Creates a Motor Insurance Claim. Requires vehicle and accident details."
     )
-    public String createMotorClaim(CreateMotorClaimRequest request) { // <--- 1. Strict Contract
+    public String createMotorClaim(CreateMotorClaimRequest request) { 
         log.info("[TOOL] Entering create_motor_claim");
         log.debug("Claim Data: {}", request);
         try {
-
-        	String claimId = String.valueOf(System.currentTimeMillis());
+            String claimId = String.valueOf(System.currentTimeMillis());
+            
             @SuppressWarnings("unchecked")
-            Map<String, Object> dynamicData = objectMapper.convertValue(request, Map.class);
-            log.info("Converted Request to Map: {}", dynamicData);
+            Map<String, Object> fieldsMap = objectMapper.convertValue(request, Map.class);
+            log.info("Converted Request to Map: {}", fieldsMap);
 
             // 3. BACKEND: Use existing generic logic
             BigDecimal templateId = case360Client.getCaseFolderTemplateId("Motor Claim");
             String caseId = case360Client.createCase(templateId);
             
-            Map<String, Object> updates = normalizeDataForBackend(dynamicData);
+            Map<String, Object> updates = normalizeDataForBackend(fieldsMap);
             
             updates.put("CREATED_ON", Instant.now());
             updates.put("CLAIM_ID", claimId);
             
             case360Client.updateCaseFields(caseId, updates);
 
-            String result = String.format("SUCCESS: Motor Claim created. Case ID: %s. Fields processed: %d.", caseId, updates.size());
+            // --- CHANGED: Construct structured JSON response ---
+            Map<String, Object> response = new HashMap<>();
+            response.put("status", "success");
+            response.put("case_id", caseId);
+            response.put("claim_id", claimId);
+            response.put("claim_doc_id", request.claimDocId());
+            response.put("processed_at", Instant.now().toString());
+
+            String result = toJson(response);
+            log.debug("Return value: {}", result);
             log.info("[TOOL] Exiting create_motor_claim");
             return result;
 
         } catch (Exception e) {
             log.error("❌ create_motor_claim Failed.", e);
-            return handleError("createMotorClaim", e);
+            return handleError("create_motor_claim", e);
         }
     }
     
@@ -177,89 +158,111 @@ public class ClaimsMcpTools {
         name = "create_healthcare_claim", 
         description = "Creates a Healthcare/Medical Claim. Requires diagnosis and hospital details."
     )
-    public String createHealthClaim(CreateHealthClaimRequest request) { // <--- 1. Strict Contract
+    public String createHealthClaim(CreateHealthClaimRequest request) { 
         log.info("[TOOL] Entering create_healthcare_claim");
         log.debug("Claim Data: {}", request);
         try {
-        	String claimId = String.valueOf(System.currentTimeMillis());
-        	
+            String claimId = String.valueOf(System.currentTimeMillis());
+            
             @SuppressWarnings("unchecked")
-            Map<String, Object> dynamicData = objectMapper.convertValue(request, Map.class);
-            log.info("Converted Request to Map: {}", dynamicData);
+            Map<String, Object> fieldsMap = objectMapper.convertValue(request, Map.class);
+            log.info("Converted Request to Map: {}", fieldsMap);
 
             // 3. BACKEND: Use existing generic logic
             BigDecimal templateId = case360Client.getCaseFolderTemplateId("Healthcare Claim");
             String caseId = case360Client.createCase(templateId);
             
-            Map<String, Object> updates = normalizeDataForBackend(dynamicData);
+            Map<String, Object> updates = normalizeDataForBackend(fieldsMap);
             
             updates.put("CREATED_ON", Instant.now());
             updates.put("CLAIM_ID", claimId);
             
             case360Client.updateCaseFields(caseId, updates);
 
-            String result = String.format("SUCCESS: Healthcare Claim created. Case ID: %s. Fields processed: %d.", caseId, updates.size());
+            // --- CHANGED: Construct structured JSON response ---
+            Map<String, Object> response = new HashMap<>();
+            response.put("status", "success");
+            response.put("case_id", caseId);
+            response.put("claim_id", claimId);
+            response.put("claim_doc_id", request.claimDocId());
+            response.put("processed_at", Instant.now().toString());
+
+            String result = toJson(response);
+            log.debug("Return value: {}", result);
             log.info("[TOOL] Exiting create_healthcare_claim");
             return result;
 
         } catch (Exception e) {
             log.error("❌ create_healthcare_claim Failed.", e);
-            return handleError("createHealthClaim", e);
+            return handleError("create_healthcare_claim", e);
         }
     }
     
     @McpTool(name="store_claim_record",
-    		description = "stores claim record in the database")
+    		description = "PRIMARY ACTION: Persist a finalized insurance claim to the database. " +
+                    "Call this whenever a user asks to save, process, or store a claim document. " +
+                    "Automatically extracts relevant business data (like diagnosis, vehicle info, dates) " +
+                    "from the context and puts it into the dynamic 'claimDetails' field.")
     public String storeClaimRecord(StoreClaimRequest request) {
-    	log.info("[TOOL] Entering store_claim_record");
+        log.info("[TOOL] Entering store_claim_record");
         log.debug("Claim Data: {}", request);
         try {
-	        // 1. Prepare the JSON Blob for dynamic data
-	        Map<String, Object> dynamicData = new HashMap<>();
-	        if ("motor".equalsIgnoreCase(request.claimType())) {
-	            dynamicData.put("vehicle_make", request.vehicleMake());
-	            dynamicData.put("incident_type", request.incidentType());
-	            // ... add other auto fields ...
-	        } else {
-	            dynamicData.put("diagnosis", request.diagnosis());
-	            // ... add other health fields ...
-	        }
-	        String jsonBlob = toJson(dynamicData); // Helper method to convert Map -> JSON String
-	
-	        Optional<Claim> existing = claimRepository.findByClaimId(request.claimId());
-	
-	        // 3. Determine the DB Primary Key (ID)
-	        // If exists: Use the EXISTING ID (this triggers an UPDATE)
-	        // If new: Use NULL (this triggers an INSERT with Auto-Generate)
-	        Integer dbId = existing.map(Claim::id).orElse(null);
-	
-	        // 4. Create the Entity (Record)
-	        Claim claimEntity = new Claim(
-	            dbId, // <--- The magic happens here (null = Auto-Gen, 123 = Update)
-	            request.claimId(),
-	            request.policyNumber(),
-	            request.claimantName(),
-	            request.claimType(),
-	            request.claimAmount(),
-	            request.caseId(),
-	            "submitted",
-	            Instant.now(),
-	            Instant.now(),
-	            jsonBlob
-	        );
-	
-	        // 5. Save (Spring handles the SQL for you)
-	        claimRepository.save(claimEntity);
-	        log.info("[TOOL] Exiting store_claim_record");
-	        return toJson(Map.of(
-	            "success", true, 
-	            "claim_id", request.claimId(), 
-	            "action", (dbId == null ? "created" : "updated")
-	        ));
+
+        	Map<String, Object> claimDetails ;
+        	try {
+                // Manually parse the JSON string the AI sent
+                if (request.additionalClaimsFields() != null && !request.additionalClaimsFields().isBlank()) {
+                	claimDetails = new ObjectMapper().readValue(request.additionalClaimsFields(), Map.class);
+                } else {
+                	claimDetails = new HashMap<>();
+                }
+            } catch (JsonProcessingException e) {
+                log.warn("AI sent bad JSON: " + request.additionalClaimsFields());
+                claimDetails = new HashMap<>();
+            }
+
+            String jsonBlob = toJson(claimDetails); // Helper method to convert Map -> JSON String
+    
+            Optional<Claim> existing = claimRepository.findByClaimId(request.claimId());
+    
+            // 3. Determine the DB Primary Key (ID)
+            Integer dbId = existing.map(Claim::id).orElse(null);
+    
+            // 4. Create the Entity (Record)
+            Claim claimEntity = new Claim(
+                dbId, 
+                request.claimId(),
+                request.claimDocId(),
+                request.policyNumber(),
+                request.claimantName(),
+                request.claimType(),
+                request.claimAmount(),
+                request.caseId(),
+                "submitted",
+                Instant.now(),
+                Instant.now(),
+                jsonBlob
+            );
+    
+            // 5. Save (Spring handles the SQL for you)
+            claimRepository.save(claimEntity);
+
+            // --- CHANGED: Added "processed_at" timestamp to response ---
+            Map<String, Object> response = new HashMap<>();
+            response.put("success", true);
+            response.put("status", "success");
+            response.put("claim_id", request.claimId());
+            response.put("action", (dbId == null ? "created" : "updated"));
+
+            String result = toJson(response);
+            log.info("[TOOL] Exiting store_claim_record");
+            log.debug("Return value: {}", result);
+            return result;
+
         } catch (Exception e) {
             log.error("❌ store_claim_record Failed.", e);
             e.printStackTrace();
-            return handleError("storeClaimRecord", e);
+            return handleError("store_claim_record", e);
         }
     }
     

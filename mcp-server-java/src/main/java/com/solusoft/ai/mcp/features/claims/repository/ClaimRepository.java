@@ -17,10 +17,10 @@ public interface ClaimRepository extends ListCrudRepository<Claim, Integer> {
     @Modifying
     @Query("""
         INSERT INTO claims (
-            claim_id, policy_number, claimant_name, claim_type, claim_amount, 
+            claim_id, claim_doc_id, policy_number, claimant_name, claim_type, claim_amount, 
             case_id, status, created_at, processed_at, additional_data
         ) VALUES (
-            :#{#c.claimId}, :#{#c.policyNumber}, :#{#c.claimantName}, 
+            :#{#c.claimId}, :#{#c.claimId}, :#{#c.policyNumber}, :#{#c.claimantName}, 
             :#{#c.claimType}, :#{#c.claimAmount}, :#{#c.caseId}, 
             :#{#c.status}, :#{#c.createdAt}, :#{#c.processedAt}, 
             :#{#c.additionalData}::jsonb  -- <--- THE CAST

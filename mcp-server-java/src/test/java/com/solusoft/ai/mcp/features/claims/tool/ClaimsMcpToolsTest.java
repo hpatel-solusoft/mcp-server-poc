@@ -159,9 +159,9 @@ public class ClaimsMcpToolsTest {
     public void testStoreClaimRecord_success_savesToDatabase() throws Exception {
         // Create the Request Object directly (not JSON strings)
         StoreClaimRequest request = new StoreClaimRequest(
-            "CLM-1", "POL-100", "Zed", "motor", 
+            "12334324","28", "POL-100", "Zed", "motor", 
             new BigDecimal("500.00"), "CASE-1", 
-            "Toyota", "Collision", null, null, null, LocalDate.now()
+            LocalDate.now(),"{vehicle_details: 2021 Elantra, color: blue}"
         );
 
         // Mock DB behavior: 
@@ -227,16 +227,15 @@ public class ClaimsMcpToolsTest {
         // 6) Store the record
         // Construct the Request object for storage
         StoreClaimRequest storeReq = new StoreClaimRequest(
-            "CLM-CHAIN-1", // ID generated in real flow, hardcoded for test input
+            "23423432", 
+            motorReq.claimDocId(),// ID generated in real flow, hardcoded for test input
             motorReq.policyNumber(),
             motorReq.claimantName(),
             "motor",
             motorReq.claimAmount(),
-            "CASE-CHAIN-1",
-            motorReq.vehicleMake(),
-            motorReq.incidentType(),
-            null, null, null,
-            motorReq.incidentDate()
+            "1234",
+            motorReq.incidentDate(),
+            "{vehicle_make: Toyota Camry, license_plate_number: ABC-123}"
         );
 
         when(claimRepository.findByClaimId(anyString())).thenReturn(Optional.empty());
@@ -297,17 +296,15 @@ public class ClaimsMcpToolsTest {
 
         // Store record
         StoreClaimRequest storeReq = new StoreClaimRequest(
-            "CLM-HC-1", 
+            "21234321",
+            "89",
             healthReq.policyNumber(),
             healthReq.claimantName(),
             "healthcare",
             healthReq.claimAmount(),
-            "CASE-HC-1",
-            null, null, 
-            healthReq.diagnosis(),
-            healthReq.hospitalName(),
-            healthReq.physician(),
-            healthReq.incidentDate()
+            "3242",
+            healthReq.incidentDate(),
+            "{diagnosis: Sprain, hospital: General Hospital, physician: Dr. House}"
         );
 
         when(claimRepository.findByClaimId(anyString())).thenReturn(Optional.empty());

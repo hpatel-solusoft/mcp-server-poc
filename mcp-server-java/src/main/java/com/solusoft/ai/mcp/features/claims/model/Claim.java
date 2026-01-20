@@ -11,6 +11,7 @@ public record Claim(
     Integer id, // Can be null for new inserts
     
     String claimId,
+    String claimDocId,
     String policyNumber,
     String claimantName,
     String claimType,

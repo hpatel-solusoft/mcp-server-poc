@@ -1,5 +1,6 @@
 version: '3.8'
 services:
+  
   postgres:
     image: postgres:15
     container_name: mcp-postgres
@@ -22,6 +23,18 @@ services:
       - "5050:80"
     depends_on:
       - postgres
+
+  vault:
+    image: hashicorp/vault:latest
+    container_name: mcp-vault
+    ports:
+      - "8200:8200"
+    environment:
+      # This forces the server to always use this token ID on startup
+      VAULT_DEV_ROOT_TOKEN_ID: "mcp-claims-processor"
+      VAULT_ADDR: "http://0.0.0.0:8200"
+    cap_add:
+      - IPC_LOCK 
 
 # This is required to define the volume we used above
 volumes:

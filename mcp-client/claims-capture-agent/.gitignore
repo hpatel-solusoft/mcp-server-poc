@@ -19,4 +19,7 @@ env/
 # other ignores
 output/
 processed/
+error/
 .env
+/server_cert.pem
+/combined_cert_bundle.pem

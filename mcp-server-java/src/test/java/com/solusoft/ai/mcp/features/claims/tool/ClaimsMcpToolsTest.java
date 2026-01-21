@@ -81,8 +81,13 @@ public class ClaimsMcpToolsTest {
 
     @Test
     public void testUploadDocument_success_callsCase360ClientAndReturnsDocumentId() throws Exception {
+        byte[] pdfHeader = "%PDF-1.5".getBytes();
         byte[] large = new byte[1024];
-        for (int i = 0; i < large.length; i++) large[i] = (byte) (i % 127);
+        System.arraycopy(pdfHeader, 0, large, 0, pdfHeader.length);
+        for (int i = pdfHeader.length; i < large.length; i++) {
+            large[i] = (byte) (i % 127);
+        }
+        // --- END FIX ---
         String base64 = Base64.getEncoder().encodeToString(large);
         String base64WithPrefix = "data:application/pdf;base64," + base64;
 
@@ -97,9 +102,12 @@ public class ClaimsMcpToolsTest {
 
         ArgumentCaptor<BigDecimal> idCaptor = ArgumentCaptor.forClass(BigDecimal.class);
         ArgumentCaptor<byte[]> contentCaptor = ArgumentCaptor.forClass(byte[].class);
-        verify(case360Client, times(1)).uploadDocument(idCaptor.capture(), contentCaptor.capture(), eq("invoice.pdf"));
+        ArgumentCaptor<String> filenameCaptor = ArgumentCaptor.forClass(String.class);
+        verify(case360Client, times(1)).uploadDocument(idCaptor.capture(), contentCaptor.capture(), filenameCaptor.capture());
         assertEquals(new BigDecimal("55555"), idCaptor.getValue());
         assertArrayEquals(large, contentCaptor.getValue());
+        // The implementation now generates a UUID-based filename; ensure it preserves the original extension
+        assertTrue(filenameCaptor.getValue().toLowerCase().endsWith(".pdf"));
     }
 
     @Test
@@ -111,30 +119,33 @@ public class ClaimsMcpToolsTest {
 
         assertFalse((Boolean)map.get("success"));
         assertEquals("FATAL_ERROR", map.get("status"));
-        assertTrue(((String)map.get("message")).toLowerCase().contains("system failure in uploaddocument."));
+        // New implementation returns tool name 'upload_document' in the message
+        assertTrue(((String)map.get("message")).toLowerCase().contains("upload_document"));
     }
 
     @Test
     public void testCreateMotorClaim_success() throws Exception {
     	CreateMotorClaimRequest motorReq = new CreateMotorClaimRequest(
-		    "Alice",
-		    "POL-0001",
-		    new BigDecimal(1500.0),
-		    java.time.LocalDate.now(),
-		    "Rear end collision",
-		    null, 
-		    "accident",
-		    "2023 Tesla Model 3",
-		    "XYZ-1234",
-		    "high");
+    	    "Alice",
+    	    "POL-0001",
+    	    new BigDecimal(1500.0),
+    	    java.time.LocalDate.now(),
+    	    "Rear end collision",
+    	    null, 
+    	    "accident",
+    	    "2023 Tesla Model 3",
+    	    "XYZ-1234",
+    	    "high");
 
         when(case360Client.getCaseFolderTemplateId(any())).thenReturn(BigDecimal.TEN);
         when(case360Client.createCase(any())).thenReturn("123");
 
         String result = tools.createMotorClaim(motorReq);
 
-        assertTrue(result.contains("SUCCESS"));
-        assertTrue(result.contains("123"));
+        Map<?,?> resp = objectMapper.readValue(result, Map.class);
+        assertEquals("success", resp.get("status"));
+        assertEquals("123", resp.get("case_id"));
+        assertEquals(motorReq.claimDocId(), resp.get("claim_doc_id"));
 
         verify(case360Client, times(1)).updateCaseFields(eq("123"), any(Map.class));
     }
@@ -142,15 +153,17 @@ public class ClaimsMcpToolsTest {
     @Test
     public void testCreateHealthClaim_success() throws Exception {
     	CreateHealthClaimRequest healthReq = new CreateHealthClaimRequest(
-		    "Bob","POL-9999",new BigDecimal(2000.0),java.time.LocalDate.now(),"Flu","Saint Hospital",null,"Medical expenses","illness","Dr. Who","Notes","normal","Summary");
+    	    "Bob","POL-9999",new BigDecimal(2000.0),java.time.LocalDate.now(),"Flu","Saint Hospital",null,"Medical expenses","illness","Dr. Who","Notes","normal","Summary");
 
         when(case360Client.getCaseFolderTemplateId(any())).thenReturn(BigDecimal.TEN);
         when(case360Client.createCase(any())).thenReturn("999");
 
         String result = tools.createHealthClaim(healthReq);
 
-        assertTrue(result.contains("SUCCESS"));
-        assertTrue(result.contains("999"));
+        Map<?,?> resp = objectMapper.readValue(result, Map.class);
+        assertEquals("success", resp.get("status"));
+        assertEquals("999", resp.get("case_id"));
+        assertEquals(healthReq.claimDocId(), resp.get("claim_doc_id"));
 
         verify(case360Client, times(1)).updateCaseFields(eq("999"), any(Map.class));
     }
@@ -167,14 +180,14 @@ public class ClaimsMcpToolsTest {
         // Mock DB behavior: 
         // 1. findByClaimId returns empty (triggers insert)
         // 2. save returns the entity
-        when(claimRepository.findByClaimId("CLM-1")).thenReturn(Optional.empty());
+        when(claimRepository.findByClaimId("12334324")).thenReturn(Optional.empty());
         when(claimRepository.save(any(Claim.class))).thenAnswer(i -> i.getArguments()[0]);
 
         String resultJson = tools.storeClaimRecord(request);
         Map<?,?> result = objectMapper.readValue(resultJson, Map.class);
 
         assertTrue((Boolean)result.get("success"));
-        assertEquals("CLM-1", result.get("claim_id"));
+        assertEquals("12334324", result.get("claim_id"));
         assertEquals("created", result.get("action"));
 
         // Verify save was called on the repository
@@ -186,8 +199,11 @@ public class ClaimsMcpToolsTest {
         // 1) Simulate extracting from a raw document text
         String doc = "Policy Number: POL-CHAIN\nClaimant Name: Carl Chain\nVehicle: Car\nIncident Date: 2025-01-01\nClaim Amount: 1200\nDescription: Fender bender";
 
-        byte[] large = new byte[512];
-        for (int i = 0; i < large.length; i++) large[i] = (byte) (i % 127);
+        byte[] pdfHeader = "%PDF-1.5".getBytes(); 
+        byte[] large = new byte[600];
+        System.arraycopy(pdfHeader, 0, large, 0, pdfHeader.length);
+        
+        // Encode to Base64 as usual
         String base64WithPrefix = "data:application/pdf;base64," + Base64.getEncoder().encodeToString(large);
 
         when(case360Client.getFilestoreTemplateId(any())).thenReturn(BigDecimal.ONE);
@@ -205,24 +221,25 @@ public class ClaimsMcpToolsTest {
 
         // 4) Create Motor Claim
         CreateMotorClaimRequest motorReq = new CreateMotorClaimRequest(
-			    (String)claimMap.get("claimant_name"),
-			    (String)claimMap.get("policy_number"),
-			    new BigDecimal("1200"),
-			    LocalDate.parse((String)claimMap.get("incident_date")),
-			    "Fender bender",
-			    docId,
-			    "accident",
-			    "Toyota Camry",
-			    "ABC-123",
-			    "normal"
-			);
+		    (String)claimMap.get("claimant_name"),
+		    (String)claimMap.get("policy_number"),
+		    new BigDecimal("1200"),
+		    LocalDate.parse((String)claimMap.get("incident_date")),
+		    "Fender bender",
+		    docId,
+		    "accident",
+		    "Toyota Camry",
+		    "ABC-123",
+		    "normal"
+		);
         
         when(case360Client.getCaseFolderTemplateId(any())).thenReturn(BigDecimal.TEN);
         when(case360Client.createCase(any())).thenReturn("CASE-CHAIN-1");
         doNothing().when(case360Client).updateCaseFields(anyString(), any(Map.class));
 
         String createResult = tools.createMotorClaim(motorReq);
-        assertTrue(createResult.contains("SUCCESS"));
+        Map<?,?> createResp = objectMapper.readValue(createResult, Map.class);
+        assertEquals("success", createResp.get("status"));
 
         // 6) Store the record
         // Construct the Request object for storage
@@ -250,7 +267,11 @@ public class ClaimsMcpToolsTest {
         org.mockito.InOrder inOrder = inOrder(case360Client, claimRepository);
         inOrder.verify(case360Client).getFilestoreTemplateId(any());
         inOrder.verify(case360Client).createFileStore(any());
-        inOrder.verify(case360Client).uploadDocument(any(BigDecimal.class), any(byte[].class), eq("chain.pdf"));
+        inOrder.verify(case360Client).uploadDocument(
+            any(BigDecimal.class), 
+            any(byte[].class), 
+            org.mockito.ArgumentMatchers.endsWith(".pdf") // checks extension only
+        );
         inOrder.verify(case360Client).getCaseFolderTemplateId(any());
         inOrder.verify(case360Client).createCase(any());
         inOrder.verify(case360Client).updateCaseFields(eq("CASE-CHAIN-1"), any(Map.class));
@@ -262,7 +283,11 @@ public class ClaimsMcpToolsTest {
     public void testFullChain_healthcareClaimFlow() throws Exception {
         String doc = "Policy Number: POL-HC-1\nClaimant Name: Dr. Patient\nDiagnosis: Sprain\nHospital: General Hospital\nPhysician: Dr. House\nIncident Date: 2025-02-02\nClaim Amount: 3000";
 
+        byte[] pdfHeader = "%PDF-1.5".getBytes(); 
         byte[] large = new byte[600];
+        System.arraycopy(pdfHeader, 0, large, 0, pdfHeader.length);
+        
+        // Encode to Base64 as usual
         String base64WithPrefix = "data:application/pdf;base64," + Base64.getEncoder().encodeToString(large);
 
         when(case360Client.getFilestoreTemplateId(any())).thenReturn(BigDecimal.ONE);
@@ -292,7 +317,8 @@ public class ClaimsMcpToolsTest {
         doNothing().when(case360Client).updateCaseFields(anyString(), any(Map.class));
 
         String result = tools.createHealthClaim(healthReq);
-        assertTrue(result.contains("SUCCESS"));
+        Map<?,?> resp = objectMapper.readValue(result, Map.class);
+        assertEquals("success", resp.get("status"));
 
         // Store record
         StoreClaimRequest storeReq = new StoreClaimRequest(
@@ -318,13 +344,79 @@ public class ClaimsMcpToolsTest {
         org.mockito.InOrder inOrder = inOrder(case360Client, claimRepository);
         inOrder.verify(case360Client).getFilestoreTemplateId(any());
         inOrder.verify(case360Client).createFileStore(any());
-        inOrder.verify(case360Client).uploadDocument(any(BigDecimal.class), any(byte[].class), eq("hc.pdf"));
+        inOrder.verify(case360Client).uploadDocument(
+            any(BigDecimal.class), 
+            any(byte[].class), 
+            org.mockito.ArgumentMatchers.endsWith(".pdf") // checks extension only
+        );
         inOrder.verify(case360Client).getCaseFolderTemplateId(any());
         inOrder.verify(case360Client).createCase(any());
         inOrder.verify(case360Client).updateCaseFields(eq("CASE-HC-1"), any(Map.class));
         inOrder.verify(claimRepository).save(any(Claim.class));
     }
 
+    @Test
+    public void testUploadDocument_SecurityBlock_InvalidMimeType_MotorContext() throws Exception {
+        // 1. Prepare "Malicious" or Invalid Data
+        // A simple text string is detected as "text/plain", which is NOT in ALLOWED_MIME_TYPES
+        String invalidContent = "This is a plain text file, not a PDF.";
+        String base64Invalid = "data:text/plain;base64," + Base64.getEncoder().encodeToString(invalidContent.getBytes());
+
+        // 2. Mock behavior (Get Template ID succeeds, but we expect failure before the actual upload)
+        when(case360Client.getFilestoreTemplateId(any())).thenReturn(BigDecimal.ONE);
+        when(case360Client.createFileStore(any())).thenReturn("999-FAIL");
+
+        // 3. Execute Tool
+        String resultJson = tools.uploadDocument(base64Invalid, "suspicious.txt");
+        Map<?,?> resultMap = objectMapper.readValue(resultJson, Map.class);
+
+        // 4. Assert Security Block
+        // The tool catches the SecurityException and returns success: false
+        assertFalse((Boolean) resultMap.get("success"), "Upload should fail for invalid MIME type");
+        assertEquals("FATAL_ERROR", resultMap.get("status"));
+        
+        String message = (String) resultMap.get("message");
+        assertTrue(message.contains("Security Block"), "Error message should mention Security Block");
+        assertTrue(message.contains("text/plain"), "Error message should mention the detected type");
+
+        // 5. Verify Isolation
+        // Crucial: Ensure the backend upload method was NEVER called
+        verify(case360Client, never()).uploadDocument(any(BigDecimal.class), any(byte[].class), anyString());
+        
+        // Ensure we didn't proceed to create a case or save a claim record
+        verify(case360Client, never()).createCase(any());
+        verify(claimRepository, never()).save(any(Claim.class));
+    }
+
+    @Test
+    public void testUploadDocument_SecurityBlock_InvalidMimeType_HealthContext() throws Exception {
+        // 1. Prepare Invalid Data (Raw binary zeros -> application/octet-stream)
+        byte[] maliciousBytes = new byte[100]; // Just zeros, no PDF header
+        String base64Invalid = Base64.getEncoder().encodeToString(maliciousBytes);
+
+        // 2. Mock behavior
+        when(case360Client.getFilestoreTemplateId(any())).thenReturn(BigDecimal.ONE);
+        when(case360Client.createFileStore(any())).thenReturn("888-FAIL");
+
+        // 3. Execute Tool
+        String resultJson = tools.uploadDocument(base64Invalid, "fake_invoice.pdf"); // Name says PDF, content is not
+        Map<?,?> resultMap = objectMapper.readValue(resultJson, Map.class);
+
+        // 4. Assert Security Block
+        assertFalse((Boolean) resultMap.get("success"), "Upload should fail for invalid MIME type");
+        
+        String message = (String) resultMap.get("message");
+        assertTrue(message.contains("Security Block"), "Error message should mention Security Block");
+        // Tika usually detects raw zeros as 'application/octet-stream'
+        assertTrue(message.contains("application/octet-stream") || message.contains("application/x-tika-msoffice"), 
+                   "Error message should detect the actual mime type, not rely on the extension");
+
+        // 5. Verify Isolation
+        verify(case360Client, never()).uploadDocument(any(BigDecimal.class), any(byte[].class), anyString());
+        verify(case360Client, never()).createCase(any());
+        verify(claimRepository, never()).save(any(Claim.class));
+    }
+    
     @Test
     public void testNegativeChain_uploadFails_noCaseCreated() throws Exception {
         byte[] large = new byte[512];

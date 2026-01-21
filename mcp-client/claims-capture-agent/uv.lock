@@ -195,6 +195,7 @@ name = "claims-capture-agent"
 version = "0.1.0"
 source = { virtual = "." }
 dependencies = [
+    { name = "certifi" },
     { name = "extra-streamlit-components" },
     { name = "httpx" },
     { name = "mcp" },
@@ -212,6 +213,7 @@ dependencies = [
 
 [package.metadata]
 requires-dist = [
+    { name = "certifi", specifier = ">=2025.11.12" },
     { name = "extra-streamlit-components", specifier = ">=0.1.81" },
     { name = "httpx", specifier = ">=0.28.1" },
     { name = "mcp", specifier = ">=1.24.0" },

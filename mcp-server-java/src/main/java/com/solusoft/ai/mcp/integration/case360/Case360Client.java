@@ -162,7 +162,7 @@ public class Case360Client {
      */
     public void updateCaseFields(String strCaseId, Map<String, Object> updates) {
         log.info("Entering updateCaseFields");
-        log.info("Input caseId: {}, updates: {}", strCaseId, updates);
+        log.info("Input caseId: {}", strCaseId);
         
         try {
             BigDecimal caseId = new BigDecimal(strCaseId);

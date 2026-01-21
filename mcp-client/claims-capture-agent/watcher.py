@@ -22,7 +22,7 @@ INPUT_DIR = Path("input")
 PROCESSED_DIR = Path("processed")
 ERROR_DIR = Path("errors")
 OUTPUT_DIR = Path("output")
-# REMOVED: SERVER_URL = "http://localhost:8000/sse" 
+
 # ADDED: Config path
 CONFIG_PATH = Path("mcp_config.json")
 

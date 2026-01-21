@@ -7,7 +7,10 @@ import java.util.Base64;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
+import java.util.UUID;
 
+import org.apache.tika.Tika;
 import org.springaicommunity.mcp.annotation.McpTool;
 import org.springframework.stereotype.Service;
 
@@ -30,21 +33,24 @@ public class ClaimsMcpTools {
     private final ObjectMapper objectMapper;
     private final ClaimRepository claimRepository;
     
+    private final Tika tika = new Tika();
+    private static final Set<String> ALLOWED_MIME_TYPES = Set.of(
+        "application/pdf", 
+        "image/jpeg", 
+        "image/png", 
+        "image/tiff"
+    );
+    
     public ClaimsMcpTools(ClaimRepository claimRepository, Case360Client case360Client, ObjectMapper objectMapper) {
         this.case360Client = case360Client;
         this.objectMapper = objectMapper;
         this.claimRepository = claimRepository;
     }
 
-    /*@PostConstruct
-    public void initDatabase() {
-        // ... (kept commented out as per input)
-    }*/
     
     @McpTool(name = "extract_claim_info", description = "Extracts claim fields from raw document text. Returns JSON.")
     public String extractClaimInfo(String documentText) {
         log.info("[TOOL] Entering extract_claim_info");
-        log.debug("Input documentText: {}", documentText);
         
         try {
             if (documentText == null || documentText.isEmpty()) {
@@ -78,7 +84,6 @@ public class ClaimsMcpTools {
     @McpTool(description = "Uploads a base64 encoded document to Case360")
     public String uploadDocument(String documentBase64, String documentName) {
         log.info("[TOOL] Entering upload_document");
-        log.debug("Input documentName: {}, base64Length: {}", documentName, (documentBase64 != null ? documentBase64.length() : 0));
         
         try {
             if (documentBase64 == null || documentBase64.isEmpty()) {
@@ -93,15 +98,28 @@ public class ClaimsMcpTools {
             
             byte[] docBytes = Base64.getDecoder().decode(documentBase64);
             log.debug("✓ Decoded {} KB of data.", docBytes.length / 1024);
+            
+            String detectedType = tika.detect(docBytes);
+            log.debug("Detected MIME type: {}", detectedType);
+            if (!ALLOWED_MIME_TYPES.contains(detectedType)) {
+                throw new SecurityException("Security Block: File type '" + detectedType + "' is not allowed.");
+            }
+            
+            String safeExtension = "";
+            if (documentName != null && documentName.contains(".")) {
+                safeExtension = documentName.substring(documentName.lastIndexOf("."));
+            }
+            String safeFileName = UUID.randomUUID().toString() + safeExtension;
+            
 
             BigDecimal templateId = case360Client.getFilestoreTemplateId("Claim Document");
             String documentId = case360Client.createFileStore(templateId);
             
-            case360Client.uploadDocument(new BigDecimal(documentId), docBytes, documentName);
+            case360Client.uploadDocument(new BigDecimal(documentId), docBytes, safeFileName);
             
             log.info("✓ Document uploaded successfully to Case360 with ID: {}", documentId);
             log.info("[TOOL] Exiting upload_document");
-            return toJson(Map.of("success", true, "document_id", documentId));
+            return toJson(Map.of("success", true, "document_id", documentId,"stored_name", safeFileName));
             
         } catch (Exception e) {
             log.error("❌ Base64 Decoding/Upload Failed.", e);
@@ -116,7 +134,6 @@ public class ClaimsMcpTools {
     )
     public String createMotorClaim(CreateMotorClaimRequest request) { 
         log.info("[TOOL] Entering create_motor_claim");
-        log.debug("Claim Data: {}", request);
         try {
             String claimId = String.valueOf(System.currentTimeMillis());
             
@@ -160,7 +177,6 @@ public class ClaimsMcpTools {
     )
     public String createHealthClaim(CreateHealthClaimRequest request) { 
         log.info("[TOOL] Entering create_healthcare_claim");
-        log.debug("Claim Data: {}", request);
         try {
             String claimId = String.valueOf(System.currentTimeMillis());
             
@@ -205,14 +221,21 @@ public class ClaimsMcpTools {
                     "from the context and puts it into the dynamic 'claimDetails' field.")
     public String storeClaimRecord(StoreClaimRequest request) {
         log.info("[TOOL] Entering store_claim_record");
-        log.debug("Claim Data: {}", request);
         try {
 
         	Map<String, Object> claimDetails ;
         	try {
                 // Manually parse the JSON string the AI sent
                 if (request.additionalClaimsFields() != null && !request.additionalClaimsFields().isBlank()) {
-                	claimDetails = new ObjectMapper().readValue(request.additionalClaimsFields(), Map.class);
+                	Map<String, Object> rawMap = new ObjectMapper().readValue(request.additionalClaimsFields(), Map.class);
+                    
+                    rawMap.keySet().removeIf(key -> 
+                        key.toLowerCase().contains("admin") || 
+                        key.toLowerCase().contains("role") ||
+                        key.toLowerCase().contains("permission")
+                    );
+                    
+                    claimDetails = rawMap;
                 } else {
                 	claimDetails = new HashMap<>();
                 }

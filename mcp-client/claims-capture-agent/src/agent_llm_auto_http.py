@@ -8,11 +8,46 @@ import json
 import sys
 import base64
 import os
+import traceback
 from typing import Optional, Any, Dict
 from pathlib import Path
 from datetime import datetime
 from contextlib import AsyncExitStack
+import httpx 
+import certifi
+from pathlib import Path
 
+# --- SECURITY CONFIGURATION ---
+# Point to the certificate file relative to this script
+# (Assuming script is in src/ and cert is in project root)
+local_cert_path = Path(__file__).parent.parent / "server_cert.pem"
+combined_cert_path = Path(__file__).parent.parent / "combined_cert_bundle.pem"
+
+if local_cert_path.exists():
+    try:
+        # 1. Read the Standard Internet Certs (for OpenAI)
+        with open(certifi.where(), "r", encoding="utf-8") as f:
+            standard_certs = f.read()
+
+        # 2. Read your Local Java Server Cert
+        with open(local_cert_path, "r", encoding="utf-8") as f:
+            local_cert = f.read()
+
+        # 3. Write them into a single new file
+        with open(combined_cert_path, "w", encoding="utf-8") as f:
+            f.write(standard_certs + "\n" + local_cert)
+
+        print(f"[SEC] Created hybrid trust bundle at: {combined_cert_path.name}")
+
+        # 4. Tell Python to use this Hybrid Bundle
+        os.environ["SSL_CERT_FILE"] = str(combined_cert_path.absolute())
+        os.environ["REQUESTS_CA_BUNDLE"] = str(combined_cert_path.absolute())
+
+    except Exception as e:
+        print(f"[WARN] Failed to create hybrid cert bundle: {e}")
+else:
+    print(f"[WARN] Local certificate not found at {local_cert_path}. SSL errors may occur.")
+# ------------------------------
 # 1. Force UTF-8 and replacement of bad characters
 sys.stdout.reconfigure(encoding='utf-8', errors='replace')
 sys.stderr.reconfigure(encoding='utf-8', errors='replace')
@@ -87,12 +122,7 @@ class LLMClaimsAgent:
                     "documentName": "current_document_name"
                 }
             },
-            "upload_motor_claim_document": {
-                "inject_params": {"documentBase64": "current_document"}
-            },
-            "create_motor_claim_workflow": {
-                "inject_params": {"documentBase64": "current_document"}
-            }, 
+
         }
    
     def load_config(self) -> dict:
@@ -107,6 +137,15 @@ class LLMClaimsAgent:
         
         print(f"\n[INIT] Loading configuration from {self.config_path}")
         
+        # 1. Retrieve the Key
+        api_key = os.getenv("MCP_SERVER_KEY")
+        headers = {}
+        if api_key:
+            headers["X-MCP-API-KEY"] = api_key
+            print("   [SEC] Loaded MCP API Key from environment")
+        else:
+            print("   [WARN] No MCP_SERVER_KEY found in .env")
+
         for server_name, server_config in servers.items():
             if server_config.get("enabled", True) is False:
                 continue
@@ -118,9 +157,12 @@ class LLMClaimsAgent:
                 try:
                     print(f"   Connecting to '{server_name}' at {url}...")
                     
+                    # REVERTED: We removed the 'client=' argument.
+                    # The monkeypatch at the top of the file now handles the SSL bypass.
                     sse_transport = await self.exit_stack.enter_async_context(
-                        sse_client(url)
+                        sse_client(url, headers=headers) 
                     )
+                    
                     read, write = sse_transport
                     
                     session = await self.exit_stack.enter_async_context(
@@ -132,7 +174,10 @@ class LLMClaimsAgent:
                     print(f"   [OK] Connected to {server_name}")
                     
                 except Exception as e:
+                    traceback.print_exc()
                     print(f"   [ERR] Failed to connect to {server_name}: {e}")
+                    # Optional: print detailed error for debugging
+                    # import traceback; traceback.print_exc()
 
         await self.load_mcp_tools()
         
@@ -259,7 +304,18 @@ class LLMClaimsAgent:
         
         system_prompt = """You are an intelligent claims processing agent with access to MCP tools for processing insurance claims.
 
-Your task is to:
+CRITICAL INSTRUCTION: VALIDATE BEFORE EXECUTION
+Before calling ANY tools, analyze the document text to determine if it is a valid claim document.
+
+IF the document is:
+- A random file (recipe, manual, invoice for non-insurance items)
+- Too vague to extract a policy number or claimant name or any claim info
+
+THEN:
+1. TERMINATE the process immediately.
+2. Respond with: "REJECTED: Document does not appear to be a valid insurance claim."
+
+ONLY if the document is a valid claim, proceed with these steps:
 1. Analyze the claim document text provided
 2. Use the appropriate tools to understand the claim type and extract relevant information
 3. Upload the claim document as needed
@@ -268,8 +324,7 @@ Your task is to:
 5. Store the claim record
 6. Provide a summary of what you did
 
-Be thorough and use the tools intelligently. If you encounter errors, explain what happened.
-Always complete all steps of the process."""
+Be thorough and use the tools intelligently. If you encounter errors, explain what happened."""
 
         messages = [
             {"role": "system", "content": system_prompt},
@@ -468,7 +523,7 @@ async def main():
             json.dump({
                 "mcpServers": {
                     "claims-server": {
-                        "url": "http://localhost:9090/sse",
+                        "url": "https://localhost:9443/mcp/sse",
                         "transport": "sse"
                     }
                 }

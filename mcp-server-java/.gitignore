@@ -47,3 +47,4 @@ target/
 .DS_Store
 Thumbs.db
 /Important Commands.txt
+/keystore.p12

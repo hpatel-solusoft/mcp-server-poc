@@ -149,7 +149,7 @@ else:
     
     st.dataframe(
         filtered_df[['created_at', 'claim_id', 'claimant_name', 'claim_type', 'claim_amount', 'status']],
-        use_container_width=True,
+        width='stretch',
         column_config={
             "created_at": st.column_config.DatetimeColumn("Processed At", format="D MMM, HH:mm"),
             "claim_amount": st.column_config.NumberColumn("Amount", format="$%.2f")

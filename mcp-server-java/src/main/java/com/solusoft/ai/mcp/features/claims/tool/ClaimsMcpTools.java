@@ -12,6 +12,7 @@ import java.util.UUID;
 
 import org.apache.tika.Tika;
 import org.springaicommunity.mcp.annotation.McpTool;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.stereotype.Service;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
@@ -49,6 +50,7 @@ public class ClaimsMcpTools {
 
     
     @McpTool(name = "extract_claim_info", description = "Extracts claim fields from raw document text. Returns JSON.")
+    @PreAuthorize("hasRole('CLAIMS_PROCESSOR')")
     public String extractClaimInfo(String documentText) {
         log.info("[TOOL] Entering extract_claim_info");
         
@@ -82,6 +84,7 @@ public class ClaimsMcpTools {
     }
     
     @McpTool(description = "Uploads a base64 encoded document to Case360")
+    @PreAuthorize("hasRole('CLAIMS_PROCESSOR')")
     public String uploadDocument(String documentBase64, String documentName) {
         log.info("[TOOL] Entering upload_document");
         
@@ -132,6 +135,7 @@ public class ClaimsMcpTools {
         name = "create_motor_claim", 
         description = "Creates a Motor Insurance Claim. Requires vehicle and accident details."
     )
+    @PreAuthorize("hasRole('CLAIMS_PROCESSOR')")
     public String createMotorClaim(CreateMotorClaimRequest request) { 
         log.info("[TOOL] Entering create_motor_claim");
         try {
@@ -175,6 +179,7 @@ public class ClaimsMcpTools {
         name = "create_healthcare_claim", 
         description = "Creates a Healthcare/Medical Claim. Requires diagnosis and hospital details."
     )
+    @PreAuthorize("hasRole('CLAIMS_PROCESSOR')")
     public String createHealthClaim(CreateHealthClaimRequest request) { 
         log.info("[TOOL] Entering create_healthcare_claim");
         try {
@@ -219,6 +224,7 @@ public class ClaimsMcpTools {
                     "Call this whenever a user asks to save, process, or store a claim document. " +
                     "Automatically extracts relevant business data (like diagnosis, vehicle info, dates) " +
                     "from the context and puts it into the dynamic 'claimDetails' field.")
+    @PreAuthorize("hasRole('CLAIMS_PROCESSOR')")
     public String storeClaimRecord(StoreClaimRequest request) {
         log.info("[TOOL] Entering store_claim_record");
         try {
@@ -288,6 +294,24 @@ public class ClaimsMcpTools {
             return handleError("store_claim_record", e);
         }
     }
+    
+    @McpTool(name = "get_claim_status", description = "Retrieves the current status of a claim by its ID")
+    @PreAuthorize("hasAnyRole('CLAIMS_PROCESSOR', 'SUPPORT_VIEWER')") 
+    public String getClaimStatus(String claimId) {
+        log.info("Checking status for claim: {}", claimId);
+        
+        // In a real implementation, you would call: claimRepository.findById(claimId)
+        if (claimId != null && claimId.startsWith("CLM-")) {
+            return toJson(Map.of(
+                "claim_id", claimId,
+                "status", "UNDER_REVIEW",
+                "last_updated", "2026-01-21",
+                "missing_documents", false
+            ));
+        }
+        return toJson(Map.of("error", "Claim ID not found"));
+    }
+
     
     // -------------------------------------------------------------------------
     //  HELPER METHODS 

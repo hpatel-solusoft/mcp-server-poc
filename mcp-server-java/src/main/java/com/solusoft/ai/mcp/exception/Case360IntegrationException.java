@@ -3,4 +3,7 @@ public class Case360IntegrationException extends RuntimeException {
     public Case360IntegrationException(String message, Throwable cause) {
         super(message, cause);
     }
+    public Case360IntegrationException(String message) {
+        super(message);
+    }
 }

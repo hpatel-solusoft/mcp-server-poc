@@ -37,8 +37,6 @@ public class ClaimsMcpTools {
     private final Tika tika = new Tika();
     private static final Set<String> ALLOWED_MIME_TYPES = Set.of(
         "application/pdf", 
-        "image/jpeg", 
-        "image/png", 
         "image/tiff"
     );
     
@@ -70,7 +68,7 @@ public class ClaimsMcpTools {
             
             String lowerText = documentText.toLowerCase();
             
-            String claimType = (lowerText.contains("vehicle") || lowerText.contains("car")) ? "motor" : "healthcare";
+            String claimType = (lowerText.contains("vehicle") || lowerText.contains("car")) ? "auto" : "healthcare";
             claimData.put("claim_type", claimType);
             
             String result = toJson(claimData);
@@ -140,7 +138,7 @@ public class ClaimsMcpTools {
         log.info("[TOOL] Entering create_motor_claim");
         try {
             String claimId = String.valueOf(System.currentTimeMillis());
-            
+            claimId = "AUTO-"+claimId;
             @SuppressWarnings("unchecked")
             Map<String, Object> fieldsMap = objectMapper.convertValue(request, Map.class);
             log.info("Converted Request to Map: {}", fieldsMap);
@@ -153,7 +151,7 @@ public class ClaimsMcpTools {
             
             updates.put("CREATED_ON", Instant.now());
             updates.put("CLAIM_ID", claimId);
-            
+            updates.put("CLAIM_STATUS", "reported");
             case360Client.updateCaseFields(caseId, updates);
 
             // --- CHANGED: Construct structured JSON response ---
@@ -184,7 +182,7 @@ public class ClaimsMcpTools {
         log.info("[TOOL] Entering create_healthcare_claim");
         try {
             String claimId = String.valueOf(System.currentTimeMillis());
-            
+            claimId = "HC-"+claimId;
             @SuppressWarnings("unchecked")
             Map<String, Object> fieldsMap = objectMapper.convertValue(request, Map.class);
             log.info("Converted Request to Map: {}", fieldsMap);
@@ -197,7 +195,7 @@ public class ClaimsMcpTools {
             
             updates.put("CREATED_ON", Instant.now());
             updates.put("CLAIM_ID", claimId);
-            
+            updates.put("CLAIM_STATUS", "reported");
             case360Client.updateCaseFields(caseId, updates);
 
             // --- CHANGED: Construct structured JSON response ---
@@ -298,18 +296,24 @@ public class ClaimsMcpTools {
     @McpTool(name = "get_claim_status", description = "Retrieves the current status of a claim by its ID")
     @PreAuthorize("hasAnyRole('CLAIMS_PROCESSOR', 'SUPPORT_VIEWER')") 
     public String getClaimStatus(String claimId) {
-        log.info("Checking status for claim: {}", claimId);
-        
-        // In a real implementation, you would call: claimRepository.findById(claimId)
-        if (claimId != null && claimId.startsWith("CLM-")) {
-            return toJson(Map.of(
-                "claim_id", claimId,
-                "status", "UNDER_REVIEW",
-                "last_updated", "2026-01-21",
-                "missing_documents", false
-            ));
+    	log.info("[TOOL] Entering get_claim_status");
+        try {
+            String claimStatus = case360Client.getClaimStatus(claimId);
+
+            Map<String, Object> response = new HashMap<>();
+            response.put("status", "success");
+            response.put("claim_id", claimId);
+            response.put("claim_status", claimStatus==null ? "unknown" : claimStatus);
+
+            String result = toJson(response);
+            log.debug("Return value: {}", result);
+            log.info("[TOOL] Exiting get_claim_status");
+            return result;
+
+        } catch (Exception e) {
+            log.error("❌ get_claim_status Failed.", e);
+            return handleError("get_claim_status", e);
         }
-        return toJson(Map.of("error", "Claim ID not found"));
     }
 
     

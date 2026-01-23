@@ -50,6 +50,61 @@ public class Case360Client {
         this.objectMapper = objectMapper;
     }
 
+    public String getClaimStatus(String claimId) {
+        log.info("Entering getClaimStatus");
+        log.debug("Input claimId: {} ", claimId);
+
+        try {
+        	
+        	if(claimId==null || claimId.isEmpty()) {
+				throw new Case360IntegrationException("Error in getClaimStatus: claimId is null or empty");
+			}
+        	
+        	String queryScript = "getHCClaimByClaimId";
+        	
+        	if(claimId.toUpperCase().startsWith("AUTO")) {
+				queryScript = "getMotorClaimByClaimId";
+        	} 
+        	
+            var request = new DoQueryByScriptName(); // Java 10+ 'var'
+            request.setQueryScriptName(queryScript);
+            
+            var param = new FieldPropertiesTO();
+            param.setPropertyName("CLAIM_ID");
+            param.setStringValue(claimId);
+            param.setDataType(4); 
+                
+            var paramWrapper = new FieldPropertiesTOArray();
+            paramWrapper.getFieldPropertiesTO().add(param);
+            
+            request.setQueryProperties(paramWrapper);
+            request.getQueryProperties().getFieldPropertiesTO().add(param);
+            
+            JAXBElement<DoQueryByScriptName> requestElement = 
+                    objectFactory.createDoQueryByScriptName(request);
+
+            @SuppressWarnings("unchecked")
+            JAXBElement<DoQueryByScriptNameResponse> responseElement = 
+                (JAXBElement<DoQueryByScriptNameResponse>) webServiceTemplate.marshalSendAndReceive(requestElement);
+
+            DoQueryByScriptNameResponse response = responseElement.getValue();
+
+            String result = response.getReturn().getFmsRowSetTO().getFirst().getFmsRowTO().getFirst().getFieldList().stream()
+					.filter(field -> "CLAIM_STATUS".equals(field.getFieldName()))
+					.findFirst()
+					.map(FmsFieldTO::getStringValue)
+					.orElse(null);
+            
+            log.debug("Return value (Status): {}", result);
+            log.info("Exiting getClaimStatus successfully");
+            return result;
+
+        }   catch (Exception e) {
+            log.error("Error in getClaimStatus for claimId : {}", claimId, e);
+            throw new Case360IntegrationException("Case360 Operation getClaimStatus Failed for: " + claimId, e);
+        }
+    }
+    
     public BigDecimal getCaseFolderTemplateId(String templateName) {
         log.info("Entering getCaseFolderTemplateId");
         log.debug("Input templateName: {}", templateName);

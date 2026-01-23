@@ -40,41 +40,6 @@ public class SoapConfig {
         marshaller.setContextPath("com.solusoft.ai.mcp.integration.case360.soap");
         return marshaller;
     }
-
-    //@Bean
-    public WebServiceTemplate case360WebServiceTemplate0(Jaxb2Marshaller marshaller) {
-        WebServiceTemplate template = new WebServiceTemplate(marshaller);
-        template.setDefaultUri(case360Url);
-
-        // --- ROBUST AUTHENTICATION SETUP ---
-        
-        // 1. Create Credentials Provider
-        BasicCredentialsProvider credsProvider = new BasicCredentialsProvider();
-        credsProvider.setCredentials(
-                new AuthScope(null, -1), // Apply to any host/port
-                new UsernamePasswordCredentials(username, password.toCharArray())
-        );
-
-        // 2. Build HttpClient that forces Pre-emptive Auth
-        CloseableHttpClient httpClient = HttpClients.custom()
-                .setDefaultCredentialsProvider(credsProvider)
-                // This Interceptor forces the Auth header to be sent immediately
-                // preventing the "401 Challenge" delay or rejection.
-                .addRequestInterceptorFirst((request, entity, context) -> {
-                     request.addHeader("Authorization", 
-                        "Basic " + java.util.Base64.getEncoder().encodeToString(
-                            (username + ":" + password).getBytes()
-                        ));
-                })
-                .build();
-
-        // 3. Attach to Template
-        HttpComponents5MessageSender messageSender = new HttpComponents5MessageSender(httpClient);
-        template.setMessageSender(messageSender);
-
-        return template;
-    }
-    
     
     @Bean
     public WebServiceTemplate case360WebServiceTemplate(Jaxb2Marshaller marshaller) {
@@ -127,26 +92,4 @@ public class SoapConfig {
         return template;
     }
     
-    
-    //@Bean
-    public WebServiceTemplate case360WebServiceTemplateJDK(Jaxb2Marshaller marshaller) {
-        WebServiceTemplate template = new WebServiceTemplate(marshaller);
-        template.setDefaultUri(case360Url);
-
-        // Use the Simple JDK Message Sender
-        HttpUrlConnectionMessageSender sender = new HttpUrlConnectionMessageSender() {
-            @Override
-            protected void prepareConnection(HttpURLConnection connection) throws IOException {
-                super.prepareConnection(connection);
-                // Manually add Basic Auth Header
-                String auth = username + ":" + password;
-                String encodedAuth = Base64.getEncoder().encodeToString(auth.getBytes());
-                connection.setRequestProperty("Authorization", "Basic " + encodedAuth);
-            }
-        };
-
-        template.setMessageSender(sender);
-        return template;
-    }
-   
 }

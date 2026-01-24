@@ -322,6 +322,7 @@ ONLY if the document is a valid claim, proceed with these steps:
 4. Based on the claim type (motor or healthcare), create the appropriate workflow
    IMPORTANT: Pass the document_id from the upload response to the workflow creation tool
 5. Store the claim record
+    IMPORTANT: Pass the claim_id from the the workflow creation tool response to the claim storage tool
 6. Provide a summary of what you did
 
 Be thorough and use the tools intelligently. If you encounter errors, explain what happened."""

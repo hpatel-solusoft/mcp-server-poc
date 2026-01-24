@@ -17,6 +17,7 @@ import org.springframework.stereotype.Service;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.solusoft.ai.mcp.exception.Case360IntegrationException;
 import com.solusoft.ai.mcp.features.claims.model.Claim;
 import com.solusoft.ai.mcp.features.claims.model.CreateHealthClaimRequest;
 import com.solusoft.ai.mcp.features.claims.model.CreateMotorClaimRequest;
@@ -367,13 +368,26 @@ public class ClaimsMcpTools {
             return "{\"error\":\"JSON_ERROR\"}";
         }
     }
-    
+
     private String handleError(String toolName, Exception e) {
-        log.error("❌ CRITICAL ERROR in tool [{}]: {}", toolName, e.getMessage(), e);
+        log.error("❌ TOOL_FAILURE [tool={}] [error_type={}]", toolName, e.getClass().getSimpleName(), e);
+
         Map<String, Object> errorResponse = new HashMap<>();
         errorResponse.put("success", false);
-        errorResponse.put("status", "FATAL_ERROR");
-        errorResponse.put("message", "System failure in " + toolName + ". " + e.getMessage());
+        errorResponse.put("status", "error");
+        
+        if (e instanceof IllegalArgumentException || e instanceof SecurityException) {
+            errorResponse.put("category", "USER_ERROR");
+            errorResponse.put("message", e.getMessage());
+            errorResponse.put("suggestion", "Review the input arguments and try again.");
+        } else {
+            errorResponse.put("category", "SYSTEM_ERROR");
+            errorResponse.put("message", "An internal system error occurred.");
+            errorResponse.put("suggestion", "Do not retry. Report this error code.");
+        }
+
+        errorResponse.put("trace_id", org.slf4j.MDC.get("trace_id"));
+
         return toJson(errorResponse);
     }
 }

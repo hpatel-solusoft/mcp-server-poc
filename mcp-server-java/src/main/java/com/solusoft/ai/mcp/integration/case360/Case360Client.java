@@ -12,10 +12,11 @@ import javax.xml.datatype.DatatypeConfigurationException;
 import javax.xml.datatype.DatatypeFactory;
 import javax.xml.datatype.XMLGregorianCalendar;
 
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Service;
 import org.springframework.ws.client.core.WebServiceTemplate;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.solusoft.ai.mcp.exception.Case360IntegrationException;
 import com.solusoft.ai.mcp.integration.case360.soap.CreateCaseFolder;
 import com.solusoft.ai.mcp.integration.case360.soap.CreateCaseFolderResponse;
@@ -40,16 +41,62 @@ import lombok.extern.slf4j.Slf4j;
 @Slf4j
 public class Case360Client {
 
+	@Autowired
+	@Qualifier("case360WebServiceTemplate")
     private final WebServiceTemplate webServiceTemplate;
-    private final ObjectMapper objectMapper; // Added for JSON serialization
     private final ObjectFactory objectFactory = new ObjectFactory();
     
     // Injected ObjectMapper to handle dynamic field serialization
-    public Case360Client(WebServiceTemplate webServiceTemplate, ObjectMapper objectMapper) {
+    public Case360Client(WebServiceTemplate webServiceTemplate) {
         this.webServiceTemplate = webServiceTemplate;
-        this.objectMapper = objectMapper;
     }
 
+    private static final DatatypeFactory DATATYPE_FACTORY;
+
+    static {
+        try {
+            DATATYPE_FACTORY = DatatypeFactory.newInstance();
+        } catch (DatatypeConfigurationException e) {
+            throw new RuntimeException("Failed to init DatatypeFactory", e);
+        }
+    }
+    
+    
+    public boolean ping() {
+        log.info("Entering ping");
+
+        try {
+        	
+        	
+            var request = new DoQueryByScriptName(); 
+            request.setQueryScriptName("serverStatusCheck");
+            
+            
+            JAXBElement<DoQueryByScriptName> requestElement = 
+                    objectFactory.createDoQueryByScriptName(request);
+
+            @SuppressWarnings("unchecked")
+            JAXBElement<DoQueryByScriptNameResponse> responseElement = 
+                (JAXBElement<DoQueryByScriptNameResponse>) webServiceTemplate.marshalSendAndReceive(requestElement);
+
+            DoQueryByScriptNameResponse response = responseElement.getValue();
+
+            return true;
+
+        }   catch (Exception e) {
+            String msg = e.getMessage().toLowerCase();
+            if (msg.contains("refused") || msg.contains("timeout") || msg.contains("connect")) {
+                log.error("Health Check Failed: Case360 is unreachable: {}", e.getMessage());
+                return false;
+            }
+            
+            // A SOAP Fault means the server replied (so it's healthy!)
+            return true;
+            
+        }
+    }
+    
+    
     public String getClaimStatus(String claimId) {
         log.info("Entering getClaimStatus");
         log.debug("Input claimId: {} ", claimId);
@@ -236,12 +283,12 @@ public class Case360Client {
             FmsRowTO fields = getResponseElement.getValue().getReturn();
             FmsRowTO newFields = getResponseElement.getValue().getReturn();
 
-            DatatypeFactory datatypeFactory;
+            /* datatypeFactory;
             try {
                 datatypeFactory = DatatypeFactory.newInstance();
             } catch (DatatypeConfigurationException e) {
                 throw new RuntimeException("DatatypeFactory init failed", e);
-            }
+            }*/
             ZoneId zoneId = ZoneId.systemDefault();
 
 
@@ -263,7 +310,7 @@ public class Case360Client {
                             case 5 -> { 
                                 if (value instanceof java.time.LocalDate localDate) {
                                     ZonedDateTime zdt = localDate.atStartOfDay(zoneId);
-                                    field.setCalendarValue(datatypeFactory.newXMLGregorianCalendar(GregorianCalendar.from(zdt)));
+                                    field.setCalendarValue(DATATYPE_FACTORY.newXMLGregorianCalendar(GregorianCalendar.from(zdt)));
                                 }
                             }
                             case 2 -> field.setIntValue(Integer.valueOf(value.toString()));

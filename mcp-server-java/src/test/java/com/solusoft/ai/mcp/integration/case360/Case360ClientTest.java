@@ -21,7 +21,6 @@ import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
 import org.springframework.ws.client.core.WebServiceTemplate;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.solusoft.ai.mcp.integration.case360.soap.CreateCaseFolder;
 import com.solusoft.ai.mcp.integration.case360.soap.CreateCaseFolderResponse;
 import com.solusoft.ai.mcp.integration.case360.soap.CreateFileStore;
@@ -45,15 +44,13 @@ public class Case360ClientTest {
     @Mock
     private WebServiceTemplate webServiceTemplate;
     
-    @Mock
-    private ObjectMapper objectMapper;
 
     private Case360Client client;
 
     @BeforeEach
     public void setup() {
         MockitoAnnotations.openMocks(this);
-        client = new Case360Client(webServiceTemplate,objectMapper);
+        client = new Case360Client(webServiceTemplate);
     }
 
     @Test

@@ -17,7 +17,6 @@ import org.springframework.stereotype.Service;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.solusoft.ai.mcp.exception.Case360IntegrationException;
 import com.solusoft.ai.mcp.features.claims.model.Claim;
 import com.solusoft.ai.mcp.features.claims.model.CreateHealthClaimRequest;
 import com.solusoft.ai.mcp.features.claims.model.CreateMotorClaimRequest;

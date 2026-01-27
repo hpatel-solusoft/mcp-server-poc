@@ -26,6 +26,7 @@ public class McpSecurityConfig {
         http
             .csrf(csrf -> csrf.disable())
             .authorizeHttpRequests(auth -> auth
+            	.requestMatchers("/actuator/**").permitAll()
             	.requestMatchers("/admin/**").permitAll() 
                 .requestMatchers("/mcp/**").permitAll()
                 .anyRequest().authenticated()

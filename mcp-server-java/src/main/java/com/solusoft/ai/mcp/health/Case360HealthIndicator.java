@@ -3,6 +3,7 @@ package com.solusoft.ai.mcp.health;
 import org.springframework.boot.actuate.health.Health;
 import org.springframework.boot.actuate.health.HealthIndicator;
 import org.springframework.stereotype.Component;
+
 import com.solusoft.ai.mcp.integration.case360.Case360Client;
 
 @Component
@@ -17,12 +18,18 @@ public class Case360HealthIndicator implements HealthIndicator {
     @Override
     public Health health() {
         try {
-        	boolean up = client.ping();
+        	long startTime = System.currentTimeMillis();
+            
+            // 2. Execute the check
+            boolean up = client.ping();
+            
+            // 3. Stop the timer and calculate duration
+            long duration = System.currentTimeMillis() - startTime;
             
             if (up) {
                 return Health.up()
                     .withDetail("system", "Case360")
-                    .withDetail("latency", "Low") // You could measure time taken in ping()
+                    .withDetail("latency", duration) // You could measure time taken in ping()
                     .build();
             } else {
                 return Health.down()

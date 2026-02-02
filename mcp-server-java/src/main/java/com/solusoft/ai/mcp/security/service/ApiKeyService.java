@@ -8,8 +8,6 @@ import java.util.HexFormat;
 import java.util.List;
 
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.cache.annotation.CacheEvict;
-import org.springframework.cache.annotation.Cacheable;
 import org.springframework.context.annotation.Lazy; // Critical for self-injection
 import org.springframework.stereotype.Service;
 

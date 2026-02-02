@@ -1,9 +1,33 @@
-version: '3.8'
+version: "3.8"
+
 services:
-  
+  mcp-server:
+    build: .
+    container_name: mcp-claims-server
+    profiles:
+      - docker
+    ports:
+      - "9090:9090"
+    environment:
+      SPRING_PROFILES_ACTIVE: docker
+      SPRING_VAULT_URI: http://vault:8200
+      VAULT_TOKEN_NAME: mcp-claims-processor
+      JAVA_TOOL_OPTIONS: "-Dspring.cloud.vault.uri=http://vault:8200"
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/mcp_db?stringtype=unspecified
+      SPRING_DATASOURCE_USERNAME: mcp_user
+      SPRING_DATASOURCE_PASSWORD: secret_password
+      "case360.password": password
+      "case360.username": SONORA
+    depends_on:
+      - postgres
+      - vault
+    restart: on-failure
+
   postgres:
     image: postgres:15
     container_name: mcp-postgres
+    profiles:
+      - docker
     environment:
       POSTGRES_DB: mcp_db
       POSTGRES_USER: mcp_user
@@ -16,6 +40,8 @@ services:
   pgadmin:
     image: dpage/pgadmin4
     container_name: mcp-pgadmin
+    profiles:
+      - docker
     environment:
       PGADMIN_DEFAULT_EMAIL: admin@admin.com
       PGADMIN_DEFAULT_PASSWORD: admin
@@ -27,15 +53,15 @@ services:
   vault:
     image: hashicorp/vault:latest
     container_name: mcp-vault
+    profiles:
+      - docker
     ports:
       - "8200:8200"
     environment:
-      # This forces the server to always use this token ID on startup
-      VAULT_DEV_ROOT_TOKEN_ID: "mcp-claims-processor"
-      VAULT_ADDR: "http://0.0.0.0:8200"
+      VAULT_DEV_ROOT_TOKEN_ID: mcp-claims-processor
+      VAULT_ADDR: http://0.0.0.0:8200
     cap_add:
-      - IPC_LOCK 
+      - IPC_LOCK
 
-# This is required to define the volume we used above
 volumes:
   mcp_pg_data:

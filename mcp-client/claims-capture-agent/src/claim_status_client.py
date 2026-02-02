@@ -50,7 +50,7 @@ class ClaimStatusClient:
         # Load Config
         if not self.config_path.exists():
             # Fallback default if config is missing
-            url = "https://localhost:9443/mcp/sse" 
+            url = "http://localhost:9090/mcp/sse" 
             print(f"[INFO] Config not found, using default: {url}")
         else:
             with open(self.config_path, 'r') as f:

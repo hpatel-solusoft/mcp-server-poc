@@ -524,7 +524,7 @@ async def main():
             json.dump({
                 "mcpServers": {
                     "claims-server": {
-                        "url": "https://localhost:9443/mcp/sse",
+                        "url": "http://localhost:9090/mcp/sse",
                         "transport": "sse"
                     }
                 }

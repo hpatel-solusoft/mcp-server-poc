@@ -3,25 +3,20 @@ package com.solusoft.ai.mcp;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.test.context.TestPropertySource;
 
-/**
- * Modern Base Test Class.
- * Holds all shared configuration so we don't repeat it in every file.
- */
 @SpringBootTest(classes = McpServerApplication.class)
 @TestPropertySource(properties = {
-    // 1. Disable Vault & Real DB
+    // 1. Network Isolation
     "spring.cloud.vault.enabled=false",
     "spring.cloud.vault.authentication=TOKEN",
     "spring.cloud.vault.token=dummy-token",
     "spring.config.import=optional:vault://",
     
-    // 2. Use H2 In-Memory DB
-    "spring.datasource.url=jdbc:h2:mem:testdb;DB_CLOSE_DELAY=-1",
+    // 2. Database Isolation (H2)
+    "spring.flyway.enabled=false", // We use schema.sql instead
+    "spring.datasource.url=jdbc:h2:mem:testdb;DB_CLOSE_DELAY=-1;MODE=PostgreSQL",
     "spring.datasource.driver-class-name=org.h2.Driver",
-    "spring.jpa.database-platform=org.hibernate.dialect.H2Dialect",
-    "spring.flyway.enabled=false",
 
-    // 3. Mock SOAP Config (Required for Context Load)
+    // 3. Mock SOAP Config
     "case360.url=http://localhost:8080/sonora/soap/Ws",
     "case360.username=test-user",
     "case360.password=test-pass",
@@ -32,5 +27,4 @@ import org.springframework.test.context.TestPropertySource;
     "case360.pool.ttl-minutes=5"
 })
 public abstract class AbstractBaseTest {
-    // Shared setup logic can go here in the future
 }

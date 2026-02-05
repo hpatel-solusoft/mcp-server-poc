@@ -373,7 +373,7 @@ public class ClaimsMcpTools {
 
         Map<String, Object> errorResponse = new HashMap<>();
         errorResponse.put("success", false);
-        errorResponse.put("status", "error");
+        errorResponse.put("status", "FATAL_ERROR");
         
         if (e instanceof IllegalArgumentException || e instanceof SecurityException) {
             errorResponse.put("category", "USER_ERROR");

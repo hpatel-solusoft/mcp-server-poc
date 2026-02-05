@@ -19,7 +19,7 @@ import org.springframework.xml.transform.ResourceSource;
 import com.solusoft.ai.mcp.AbstractBaseTest;
 
 // Cleaner: Extends base class, no messy property annotations here
-public class Case360ClientTest{
+public class Case360ClientTest extends AbstractBaseTest {
 
     @Autowired
     private Case360Client client;

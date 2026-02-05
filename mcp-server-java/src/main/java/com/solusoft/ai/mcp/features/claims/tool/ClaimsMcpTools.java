@@ -81,7 +81,7 @@ public class ClaimsMcpTools {
         }
     }
     
-    @McpTool(description = "Uploads a base64 encoded document to Case360")
+    @McpTool(name="upload_document", description = "Uploads a base64 encoded document to Case360")
     @PreAuthorize("hasRole('CLAIMS_PROCESSOR')")
     public String uploadDocument(String documentBase64, String documentName) {
         log.info("[TOOL] Entering upload_document");
@@ -123,7 +123,7 @@ public class ClaimsMcpTools {
             return toJson(Map.of("success", true, "document_id", documentId,"stored_name", safeFileName));
             
         } catch (Exception e) {
-            log.error("❌ Base64 Decoding/Upload Failed.", e);
+            log.error("❌ upload_document Failed.", e);
             return handleError("upload_document", e);
         }
     }

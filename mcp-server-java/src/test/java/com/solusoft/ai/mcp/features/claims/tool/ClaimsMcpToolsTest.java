@@ -26,6 +26,8 @@ import org.mockito.InOrder;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.json.JsonTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
+
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.solusoft.ai.mcp.features.claims.model.Claim;
 import com.solusoft.ai.mcp.features.claims.model.CreateHealthClaimRequest;
@@ -37,10 +39,10 @@ import com.solusoft.ai.mcp.integration.case360.Case360Client;
 @JsonTest
 public class ClaimsMcpToolsTest {
 
-    @MockBean
+    @MockitoBean
     private ClaimRepository claimRepository;
     
-    @MockBean
+    @MockitoBean
     private Case360Client case360Client;
 
     @Autowired

@@ -10,7 +10,7 @@ import com.solusoft.ai.mcp.features.claims.repository.ClaimRepository;
 import com.solusoft.ai.mcp.integration.case360.Case360Client;
 
 @SpringBootTest
-class ClaimsMcpServerApplicationTests extends AbstractBaseTest {
+class ClaimsMcpServerApplicationTests {
 
     @Autowired
     private Case360Client case360Client;

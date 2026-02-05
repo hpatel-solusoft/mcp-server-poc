@@ -1,0 +1,12 @@
+<ns2:doQueryByScriptNameResponse xmlns:ns2="http://webservices.sonora.eistream.com/">
+    <return>
+        <FmsRowSetTO>
+            <FmsRowTO>
+                <fieldList>
+                    <fieldName>TEMPLATENAME</fieldName>
+                    <bigDecimalValue>42</bigDecimalValue>
+                </fieldList>
+            </FmsRowTO>
+        </FmsRowSetTO>
+    </return>
+</ns2:doQueryByScriptNameResponse>

@@ -1,0 +1,3 @@
+<ns2:createCaseFolder xmlns:ns2="http://soap.case360.integration.mcp.ai.solusoft.com/">
+    <caseFolderTemplateId>42</caseFolderTemplateId>
+</ns2:createCaseFolder>

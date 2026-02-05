@@ -1,0 +1,3 @@
+<ns2:createFileStoreResponse xmlns:ns2="http://webservices.sonora.eistream.com/">
+    <return>555</return>
+</ns2:createFileStoreResponse>

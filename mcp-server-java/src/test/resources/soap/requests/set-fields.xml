@@ -1,0 +1,18 @@
+<ns2:setCaseFolderFields xmlns:ns2="http://webservices.sonora.eistream.com/">
+    <caseFolderInstanceId>123</caseFolderInstanceId>
+    <originalCaseFolderFields>
+        <fieldList>
+            <fieldName>CLAIMANT_NAME</fieldName>
+            <stringValue>Old Name</stringValue>
+            <modified>false</modified>
+        </fieldList>
+    </originalCaseFolderFields>
+    <newCaseFolderFields>
+        <fieldList>
+            <fieldName>CLAIMANT_NAME</fieldName>
+            <stringValue>New Name</stringValue>
+            <modified>true</modified>
+        </fieldList>
+    </newCaseFolderFields>
+    <bForceUpdate>true</bForceUpdate>
+</ns2:setCaseFolderFields>

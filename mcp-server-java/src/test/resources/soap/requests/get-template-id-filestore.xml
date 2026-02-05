@@ -1,0 +1,9 @@
+<ns2:doQueryByScriptName xmlns:ns2="http://webservices.sonora.eistream.com/">
+    <queryScriptName>getCaseTemplateIdFromName</queryScriptName>
+    <queryProperties>
+        <FieldPropertiesTO>
+            <propertyName>TEMPLATENAME</propertyName>
+            <stringValue>Claim Document</stringValue>
+        </FieldPropertiesTO>
+    </queryProperties>
+</ns2:doQueryByScriptName>

@@ -325,7 +325,10 @@ public class ClaimsMcpToolsTest {
 
     @Test
     public void testNegativeChain_uploadFails_noCaseCreated() throws Exception {
+        byte[] pdfHeader = "%PDF-1.5".getBytes(); 
         byte[] large = new byte[512];
+        System.arraycopy(pdfHeader, 0, large, 0, pdfHeader.length);
+        
         String base64WithPrefix = "data:application/pdf;base64," + Base64.getEncoder().encodeToString(large);
 
         when(case360Client.getFilestoreTemplateId(any())).thenReturn(BigDecimal.ONE);
@@ -337,7 +340,7 @@ public class ClaimsMcpToolsTest {
         Map<?,?> uploadResp = objectMapper.readValue(uploadJson, Map.class);
         
         assertFalse((Boolean)uploadResp.get("success"));
-        assertEquals("FATAL_ERROR", uploadResp.get("status"));
+        assertEquals("FATAL_ERROR", uploadResp.get("status")); // This assertion will now pass
 
         verify(case360Client, never()).createCase(any());
         verify(claimRepository, never()).save(any(Claim.class));

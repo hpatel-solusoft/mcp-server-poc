@@ -125,7 +125,7 @@ public class Case360Client {
             paramWrapper.getFieldPropertiesTO().add(param);
             
             request.setQueryProperties(paramWrapper);
-            request.getQueryProperties().getFieldPropertiesTO().add(param);
+            //request.getQueryProperties().getFieldPropertiesTO().add(param);
             
             JAXBElement<DoQueryByScriptName> requestElement = 
                     objectFactory.createDoQueryByScriptName(request);
@@ -169,7 +169,7 @@ public class Case360Client {
             paramWrapper.getFieldPropertiesTO().add(param);
             
             request.setQueryProperties(paramWrapper);
-            request.getQueryProperties().getFieldPropertiesTO().add(param);
+            //request.getQueryProperties().getFieldPropertiesTO().add(param);
             
             JAXBElement<DoQueryByScriptName> requestElement = 
                     objectFactory.createDoQueryByScriptName(request);
@@ -208,7 +208,7 @@ public class Case360Client {
             paramWrapper.getFieldPropertiesTO().add(param);
             
             request.setQueryProperties(paramWrapper);
-            request.getQueryProperties().getFieldPropertiesTO().add(param);
+            //request.getQueryProperties().getFieldPropertiesTO().add(param);
             
             JAXBElement<DoQueryByScriptName> requestElement = 
                     objectFactory.createDoQueryByScriptName(request);
@@ -337,6 +337,7 @@ public class Case360Client {
             log.info("Exiting updateCaseFields successfully");
 
         }  catch (Exception e) {
+        	log.error("Error in updateCaseFields for caseId: {}", strCaseId, e);
         	throw new Case360IntegrationException("Fields update failed for Case ID: " + strCaseId, e);
         }
     }

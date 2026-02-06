@@ -2,6 +2,9 @@
     <queryScriptName>getCaseTemplateIdFromName</queryScriptName>
     <queryProperties>
         <FieldPropertiesTO>
+            <booleanValue>false</booleanValue>
+            <dataType>4</dataType>
+            <intValue>0</intValue>
             <propertyName>TEMPLATENAME</propertyName>
             <stringValue>Motor Claim</stringValue>
         </FieldPropertiesTO>

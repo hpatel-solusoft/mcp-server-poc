@@ -1,4 +1,4 @@
-<ns2:getCaseFolderFields xmlns:ns2="http://soap.case360.integration.mcp.ai.solusoft.com/">
+<ns2:getCaseFolderFields xmlns:ns2="http://webservices.sonora.eistream.com/">
     <caseFolderId>135</caseFolderId>
 </ns2:getCaseFolderFields>
 

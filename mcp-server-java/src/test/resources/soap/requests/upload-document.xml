@@ -1,4 +1,4 @@
-<ns2:putFile xmlns:ns2="http://soap.case360.integration.mcp.ai.solusoft.com/">
+<ns2:putFile xmlns:ns2="http://webservices.sonora.eistream.com/">
     <documentId>777</documentId>
     <data>AQID</data>
     <fileName>file.bin</fileName>

@@ -61,7 +61,7 @@ services:
       - CASE360_URL=http://host.docker.internal:8080/sonora/soap/Ws
       - CASE360_OVERRIDE_HOST=localhost:8080
       # Strongly recommended so app talks to the vault container, not localhost
-      - SPRING_VAULT_URI=http://vault:8200
+      - SPRING_CLOUD_VAULT_URI=http://vault:8200
     depends_on:
       - postgres
       - vault

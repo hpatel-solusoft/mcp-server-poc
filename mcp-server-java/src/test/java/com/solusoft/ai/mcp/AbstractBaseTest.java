@@ -5,6 +5,7 @@ import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 
+import com.solusoft.ai.mcp.security.controller.AdminKeyController;
 import com.solusoft.ai.mcp.security.service.ApiKeyService;
 
 @SpringBootTest(classes = McpServerApplication.class)
@@ -34,4 +35,6 @@ import com.solusoft.ai.mcp.security.service.ApiKeyService;
 public abstract class AbstractBaseTest {
 	@MockitoBean
     protected ApiKeyService apiKeyService;
+	@MockitoBean
+	private AdminKeyController adminKeyController;
 }

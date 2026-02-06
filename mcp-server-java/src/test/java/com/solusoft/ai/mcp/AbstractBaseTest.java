@@ -3,6 +3,9 @@ package com.solusoft.ai.mcp;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.TestPropertySource;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
+
+import com.solusoft.ai.mcp.security.service.ApiKeyService;
 
 @SpringBootTest(classes = McpServerApplication.class)
 @ActiveProfiles("test")
@@ -29,4 +32,6 @@ import org.springframework.test.context.TestPropertySource;
     "case360.pool.ttl-minutes=5"
 })
 public abstract class AbstractBaseTest {
+	@MockitoBean
+    protected ApiKeyService apiKeyService;
 }

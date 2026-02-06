@@ -1,9 +1,11 @@
 package com.solusoft.ai.mcp;
 
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.TestPropertySource;
 
 @SpringBootTest(classes = McpServerApplication.class)
+@ActiveProfiles("test")
 @TestPropertySource(properties = {
     // 1. Network Isolation
     "spring.cloud.vault.enabled=false",

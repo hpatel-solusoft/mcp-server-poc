@@ -6,6 +6,7 @@ import java.util.List;
 
 import org.postgresql.util.PGobject;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.context.annotation.Profile;
 import org.springframework.core.convert.converter.Converter;
 import org.springframework.data.convert.WritingConverter;
 import org.springframework.data.jdbc.repository.config.AbstractJdbcConfiguration;
@@ -14,6 +15,7 @@ import org.springframework.data.relational.core.dialect.PostgresDialect;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcOperations;
 
 @Configuration
+@Profile("!test") // Exclude from tests to avoid conflicts
 public class McpJdbcConfig extends AbstractJdbcConfiguration {
 
     // 1. Explicitly set Postgres Dialect to prevent "SelectRenderContext" errors

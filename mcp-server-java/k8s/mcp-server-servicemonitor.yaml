@@ -1,0 +1,18 @@
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: mcp-server-monitor
+  namespace: monitoring
+  labels:
+    release: kube-prometheus-stack # Matches the helm release label
+spec:
+  selector:
+    matchLabels:
+      app: mcp-server # Matches your deployment label
+  namespaceSelector:
+    matchNames:
+      - mcp-prod # The namespace where your server lives
+  endpoints:
+  - port: http # Ensure your Service port is named 'http'
+    path: /actuator/prometheus
+    interval: 15s

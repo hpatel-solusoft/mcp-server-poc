@@ -22,4 +22,6 @@ spec:
     automated:
       prune: true
       selfHeal: true
-    createNamespace: true
+      allowEmpty: false
+    syncOptions:
+      - CreateNamespace=true # This is the standard way to enable it

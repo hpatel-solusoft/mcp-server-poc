@@ -15,7 +15,7 @@ spec:
     spec:
       containers:
       - name: mcp-server
-        image: hpatelsolusoft/claims-mcp-server:12e4d82308e259ad6f703789855261eedc6ea862
+        image: hpatelsolusoft/claims-mcp-server:cd5bf2849313163282259371c929671841916316
         ports:
         - containerPort: 9090
         # FIXED: Indentation for 'env' was shifted too far right

@@ -1,4 +1,8 @@
-# Allow the app to read ONLY its own configuration
-path "secret/data/claims-mcp-server" {
-  capabilities = ["read"]
+# Allow the app to read its own configuration and profile sub-paths
+path "secret/data/claims-mcp-server*" {
+  capabilities = ["read", "list"]
+}
+
+path "secret/metadata/claims-mcp-server*" {
+  capabilities = ["read", "list"]
 }

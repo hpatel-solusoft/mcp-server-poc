@@ -19,7 +19,7 @@ services:
     image: hashicorp/vault:latest
     container_name: mcp-vault
     ports:
-      - "8200:8200" 
+      - "8200:8200"
     volumes:
       - ./vault/config:/vault/config
       - vault-data:/vault/file
@@ -57,9 +57,10 @@ services:
     environment:
       - SPRING_PROFILES_ACTIVE=docker
       # Fill this after you create a token in Vault
-      - VAULT_TOKEN=placeholder-token
-      - CASE360_URL=http://host.docker.internal:8080/sonora/soap/Ws
-      - CASE360_OVERRIDE_HOST=localhost:8080
+      - VAULT_ROLE_ID=${VAULT_ROLE_ID}
+      - VAULT_SECRET_ID=${VAULT_SECRET_ID}
+      - CASE360_URL=http://122.169.108.196:8080/sonora/soap/Ws
+      - CASE360_OVERRIDE_HOST=122.169.108.196:8080
       # Strongly recommended so app talks to the vault container, not localhost
       - SPRING_CLOUD_VAULT_URI=http://vault:8200
     depends_on:

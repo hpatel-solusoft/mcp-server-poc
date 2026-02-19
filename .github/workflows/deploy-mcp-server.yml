@@ -86,7 +86,7 @@ jobs:
       - name: Update Image Tag
         run: |
           # Replaces the image tag in your manifest with the new Git SHA
-          sed -i 's|image: .*|image: ${{ secrets.DOCKER_USERNAME }}/claims-mcp-server:${{ github.sha }}|g' ./mcp-server-javak8s/mcp-server-deployment.yaml
+          sed -i 's|image: .*|image: ${{ secrets.DOCKER_USERNAME }}/claims-mcp-server:${{ github.sha }}|g' ./mcp-server-java/k8s/mcp-server-deployment.yaml
 
       - name: Commit and Push Changes
         run: |

@@ -15,7 +15,7 @@ spec:
     spec:
       containers:
       - name: mcp-server
-        image: hpatelsolusoft/claims-mcp-server:62c0d27b8d483072fc4d700694238ce1ec95812b
+        image: hpatelsolusoft/claims-mcp-server:ef1a1cf886e1824f0b5d43c303894d22280907e3
         ports:
         - name: http           # Added for ServiceMonitor discovery
           containerPort: 9090

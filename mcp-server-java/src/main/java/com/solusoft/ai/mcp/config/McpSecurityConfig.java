@@ -35,6 +35,7 @@ public class McpSecurityConfig {
                 new McpHeaderAuthenticationFilter(apiKeyService), 
                 UsernamePasswordAuthenticationFilter.class
             );
+		    
         return http.build();
     }
 }

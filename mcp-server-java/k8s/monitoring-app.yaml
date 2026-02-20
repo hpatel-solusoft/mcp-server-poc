@@ -14,7 +14,7 @@ spec:
         grafana:
           service:
             type: LoadBalancer
-            nodePort: 31000 # Access Grafana on localhost:31000
+            nodePort: 31000
   destination:
     server: https://kubernetes.default.svc
     namespace: monitoring
@@ -22,6 +22,6 @@ spec:
     automated:
       prune: true
       selfHeal: true
-      allowEmpty: false
     syncOptions:
-      - CreateNamespace=true # This is the standard way to enable it
+      - CreateNamespace=true
+      - ServerSideApply=true  # <--- THIS IS THE MANDATORY FIX

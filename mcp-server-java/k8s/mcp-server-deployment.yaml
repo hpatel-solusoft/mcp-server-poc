@@ -4,7 +4,7 @@ metadata:
   name: mcp-claims-server
   namespace: mcp-prod
 spec:
-  replicas: 2 
+  replicas: 2
   selector:
     matchLabels:
       app: mcp-server
@@ -17,8 +17,8 @@ spec:
       - name: mcp-server
         image: hpatelsolusoft/claims-mcp-server:62c0d27b8d483072fc4d700694238ce1ec95812b
         ports:
-        - containerPort: 9090
-        # FIXED: Indentation for 'env' was shifted too far right
+        - name: http           # Added for ServiceMonitor discovery
+          containerPort: 9090
         env:
         - name: SPRING_PROFILES_ACTIVE
           value: "prod"
@@ -70,7 +70,8 @@ spec:
   selector:
     app: mcp-server
   ports:
-  - protocol: TCP
+  - name: http           # Required name for ServiceMonitor targeting
+    protocol: TCP
     port: 9091
     targetPort: 9090
     nodePort: 30091

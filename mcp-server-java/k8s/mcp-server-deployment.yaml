@@ -15,7 +15,7 @@ spec:
     spec:
       containers:
       - name: mcp-server
-        image: hpatelsolusoft/claims-mcp-server:62c0d27b8d483072fc4d700694238ce1ec95812b
+        image: hpatelsolusoft/claims-mcp-server:634969cb7fc66992ee8d36338206204a00d3a1bb
         ports:
         - name: http           # MANDATORY: Named port for Prometheus
           containerPort: 9090

@@ -11,10 +11,13 @@ spec:
     targetRevision: 61.3.1
     helm:
       values: |
-        grafana:
-          service:
-            type: LoadBalancer
-            nodePort: 31000
+        prometheus:
+          prometheusSpec:
+            # Ensures your Java 21 app monitors are discovered
+            serviceMonitorSelectorNilUsesHelmValues: false 
+            serviceMonitorSelector:
+              matchLabels:
+                release: kube-prometheus-stack
   destination:
     server: https://kubernetes.default.svc
     namespace: monitoring
@@ -24,4 +27,5 @@ spec:
       selfHeal: true
     syncOptions:
       - CreateNamespace=true
-      - ServerSideApply=true  # <--- THIS IS THE MANDATORY FIX
+      - ServerSideApply=true
+      - Replace=true  # CRITICAL: This fixes the "No StatefulSet" issue

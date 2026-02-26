@@ -63,6 +63,7 @@ services:
       - CASE360_OVERRIDE_HOST=122.169.108.196:8080
       # Strongly recommended so app talks to the vault container, not localhost
       - SPRING_CLOUD_VAULT_URI=http://vault:8200
+      - SPRING_FLYWAY_REPAIR_ON_MIGRATE=true
     depends_on:
       - postgres
       - vault

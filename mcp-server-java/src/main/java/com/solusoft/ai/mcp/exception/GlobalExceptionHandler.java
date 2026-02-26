@@ -12,6 +12,7 @@ import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.servlet.resource.NoResourceFoundException;
 
+import io.github.resilience4j.circuitbreaker.CallNotPermittedException;
 import lombok.extern.slf4j.Slf4j;
 
 @RestControllerAdvice
@@ -46,6 +47,13 @@ public class GlobalExceptionHandler {
         // Log the full stack trace for generic errors
         log.error("Unhandled System Exception", ex);
         return buildResponse(HttpStatus.INTERNAL_SERVER_ERROR, "INTERNAL_ERROR", "An unexpected system error occurred.");
+    }
+    
+    @ExceptionHandler(CallNotPermittedException.class)
+    public ResponseEntity<Map<String, Object>> handleCircuitBreakerOpen(CallNotPermittedException ex) {
+    	
+    	log.error("Error in establishing connection", ex);
+        return buildResponse(HttpStatus.SERVICE_UNAVAILABLE, "SERVICE_UNAVAILABLE", "Service is temporarily offline for maintenance.");
     }
 
     private ResponseEntity<Map<String, Object>> buildResponse(HttpStatus status, String code, String message) {

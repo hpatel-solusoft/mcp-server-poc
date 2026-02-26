@@ -14,11 +14,13 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
+
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.Base64;
 import java.util.Map;
 import java.util.Optional;
+
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
@@ -33,7 +35,9 @@ import com.solusoft.ai.mcp.features.claims.model.CreateHealthClaimRequest;
 import com.solusoft.ai.mcp.features.claims.model.CreateMotorClaimRequest;
 import com.solusoft.ai.mcp.features.claims.model.StoreClaimRequest;
 import com.solusoft.ai.mcp.features.claims.repository.ClaimRepository;
+import com.solusoft.ai.mcp.features.claims.service.ClaimPersistenceService;
 import com.solusoft.ai.mcp.integration.case360.Case360Client;
+import com.solusoft.ai.mcp.integration.case360.Case360RecoveryHandler;
 
 @JsonTest
 public class ClaimsMcpToolsTest {
@@ -44,6 +48,13 @@ public class ClaimsMcpToolsTest {
     @MockitoBean
     private Case360Client case360Client;
 
+    // New mocks for constructor additions
+    @MockitoBean
+    private Case360RecoveryHandler recoveryHandler;
+
+    @MockitoBean
+    private ClaimPersistenceService persistenceService;
+
     @Autowired
     private ObjectMapper objectMapper;
     
@@ -51,7 +62,7 @@ public class ClaimsMcpToolsTest {
     
     @BeforeEach
     public void setup() {
-        tools = new ClaimsMcpTools(claimRepository, case360Client, objectMapper);
+        tools = new ClaimsMcpTools(claimRepository, case360Client, objectMapper, recoveryHandler, persistenceService);
     }
 
     @Test
@@ -121,7 +132,7 @@ public class ClaimsMcpToolsTest {
     public void testCreateMotorClaim_success() throws Exception {
         CreateMotorClaimRequest motorReq = new CreateMotorClaimRequest(
             "Alice", "POL-0001", new BigDecimal(1500.0), java.time.LocalDate.now(),
-            "Rear end collision", null, "accident", "2023 Tesla Model 3", "XYZ-1234", "high");
+            "Rear end collision", "1098", "accident", "2023 Tesla Model 3", "XYZ-1234", "high");
 
         when(case360Client.getCaseFolderTemplateId(any())).thenReturn(BigDecimal.TEN);
         when(case360Client.createCase(any())).thenReturn("123");
@@ -160,8 +171,9 @@ public class ClaimsMcpToolsTest {
             LocalDate.now(),"{vehicle_details: 2021 Elantra, color: blue}"
         );
 
-        when(claimRepository.findByClaimId("12334324")).thenReturn(Optional.empty());
-        when(claimRepository.save(any(Claim.class))).thenAnswer(i -> i.getArguments()[0]);
+        // New flow: ClaimsMcpTools delegates to ClaimPersistenceService
+        when(persistenceService.saveClaimWithResilience(request))
+            .thenReturn(new ClaimPersistenceService.PersistenceResult(true, "success", "created", "Claim successfully saved to the database."));
 
         String resultJson = tools.storeClaimRecord(request);
         Map<?,?> result = objectMapper.readValue(resultJson, Map.class);
@@ -169,7 +181,7 @@ public class ClaimsMcpToolsTest {
         assertTrue((Boolean)result.get("success"));
         assertEquals("12334324", result.get("claim_id"));
 
-        verify(claimRepository, times(1)).save(any(Claim.class));
+        verify(persistenceService, times(1)).saveClaimWithResilience(request);
     }
 
     @Test
@@ -215,22 +227,22 @@ public class ClaimsMcpToolsTest {
             "motor", motorReq.claimAmount(), "1234", motorReq.incidentDate(), "{}"
         );
 
-        when(claimRepository.findByClaimId(anyString())).thenReturn(Optional.empty());
-        when(claimRepository.save(any(Claim.class))).thenAnswer(i -> i.getArguments()[0]);
+        when(persistenceService.saveClaimWithResilience(storeReq))
+            .thenReturn(new ClaimPersistenceService.PersistenceResult(true, "success", "created", "Claim successfully saved to the database."));
 
         String storeResult = tools.storeClaimRecord(storeReq);
         Map<?,?> storeMap = objectMapper.readValue(storeResult, Map.class);
         assertTrue((Boolean)storeMap.get("success"));
 
         // Verify Order
-        InOrder inOrder = inOrder(case360Client, claimRepository);
+        InOrder inOrder = inOrder(case360Client, persistenceService);
         inOrder.verify(case360Client).getFilestoreTemplateId(any());
         inOrder.verify(case360Client).createFileStore(any());
         inOrder.verify(case360Client).uploadDocument(any(BigDecimal.class), any(byte[].class), anyString());
         inOrder.verify(case360Client).getCaseFolderTemplateId(any());
         inOrder.verify(case360Client).createCase(any());
         inOrder.verify(case360Client).updateCaseFields(eq("CASE-CHAIN-1"), any(Map.class));
-        inOrder.verify(claimRepository).save(any(Claim.class));
+        inOrder.verify(persistenceService).saveClaimWithResilience(storeReq);
     }
 
     @Test
@@ -274,20 +286,20 @@ public class ClaimsMcpToolsTest {
             "healthcare", healthReq.claimAmount(), "3242", healthReq.incidentDate(), "{}"
         );
 
-        when(claimRepository.findByClaimId(anyString())).thenReturn(Optional.empty());
-        when(claimRepository.save(any(Claim.class))).thenAnswer(i -> i.getArguments()[0]);
+        when(persistenceService.saveClaimWithResilience(storeReq))
+            .thenReturn(new ClaimPersistenceService.PersistenceResult(true, "success", "created", "Claim successfully saved to the database."));
 
         tools.storeClaimRecord(storeReq);
 
         // Verify Order
-        InOrder inOrder = inOrder(case360Client, claimRepository);
+        InOrder inOrder = inOrder(case360Client, persistenceService);
         inOrder.verify(case360Client).getFilestoreTemplateId(any());
         inOrder.verify(case360Client).createFileStore(any());
         inOrder.verify(case360Client).uploadDocument(any(BigDecimal.class), any(byte[].class), anyString());
         inOrder.verify(case360Client).getCaseFolderTemplateId(any());
         inOrder.verify(case360Client).createCase(any());
         inOrder.verify(case360Client).updateCaseFields(eq("CASE-HC-1"), any(Map.class));
-        inOrder.verify(claimRepository).save(any(Claim.class));
+        inOrder.verify(persistenceService).saveClaimWithResilience(storeReq);
     }
 
     @Test
@@ -344,6 +356,6 @@ public class ClaimsMcpToolsTest {
         assertEquals("FATAL_ERROR", uploadResp.get("status")); // This assertion will now pass
 
         verify(case360Client, never()).createCase(any());
-        verify(claimRepository, never()).save(any(Claim.class));
+        verify(persistenceService, never()).saveClaimWithResilience(any());
     }
 }

@@ -4,21 +4,25 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.math.BigDecimal;
-import java.util.Map;
 
+import org.jobrunr.scheduling.JobScheduler;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.ApplicationContext;
+import org.springframework.context.annotation.Import;
 import org.springframework.core.io.ClassPathResource;
+import org.springframework.test.context.ActiveProfiles;
 import org.springframework.ws.test.client.MockWebServiceServer;
 import org.springframework.ws.test.client.RequestMatchers;
 import org.springframework.ws.test.client.ResponseCreators;
 import org.springframework.xml.transform.ResourceSource;
 
 import com.solusoft.ai.mcp.AbstractBaseTest;
+import com.solusoft.ai.mcp.config.TestJobRunrConfig;
 
 // Cleaner: Extends base class, no messy property annotations here
+@Import(TestJobRunrConfig.class) //
 public class Case360ClientTest extends AbstractBaseTest {
 
     @Autowired
@@ -28,6 +32,9 @@ public class Case360ClientTest extends AbstractBaseTest {
     private ApplicationContext applicationContext;
 
     private MockWebServiceServer mockServer;
+    
+    @Autowired
+    private JobScheduler jobScheduler;
 
     @BeforeEach
     public void setup() {

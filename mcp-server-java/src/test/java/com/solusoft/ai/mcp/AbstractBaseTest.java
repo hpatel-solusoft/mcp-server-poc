@@ -30,7 +30,10 @@ import com.solusoft.ai.mcp.security.service.ApiKeyService;
     "case360.timeout.read=1000",
     "case360.pool.max-total=10",
     "case360.pool.max-per-route=5",
-    "case360.pool.ttl-minutes=5"
+    "case360.pool.ttl-minutes=5",
+    "org.jobrunr.background-job-server.enabled=false",
+    "org.jobrunr.dashboard.enabled=false",
+    "spring.autoconfigure.exclude=org.jobrunr.spring.autoconfigure.JobRunrAutoConfiguration"
 })
 public abstract class AbstractBaseTest {
 	@MockitoBean

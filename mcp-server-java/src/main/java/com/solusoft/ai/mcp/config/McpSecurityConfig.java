@@ -26,7 +26,10 @@ public class McpSecurityConfig {
         http
             .csrf(csrf -> csrf.disable())
             .authorizeHttpRequests(auth -> auth
-            	.requestMatchers("/actuator/**").permitAll()
+            	//.requestMatchers("/actuator/**").permitAll()
+        		.requestMatchers("/actuator/health/**").permitAll() 
+                // Metrics usually restricted to internal VPC or specific roles
+                .requestMatchers("/actuator/prometheus").hasRole("MONITORING")
             	.requestMatchers("/admin/**").permitAll() 
                 .requestMatchers("/mcp/**").permitAll()
                 .anyRequest().authenticated()

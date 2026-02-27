@@ -1,5 +1,7 @@
 package com.solusoft.ai.mcp.config;
 
+import static org.mockito.Mockito.mock;
+
 import org.jobrunr.jobs.mappers.JobMapper;
 import org.jobrunr.scheduling.JobScheduler;
 import org.jobrunr.storage.InMemoryStorageProvider;
@@ -7,7 +9,6 @@ import org.jobrunr.storage.StorageProvider;
 import org.springframework.boot.test.context.TestConfiguration;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Primary;
-import static org.mockito.Mockito.mock;
 
 @TestConfiguration
 public class TestJobRunrConfig {

@@ -3,7 +3,6 @@ package com.solusoft.ai.mcp.integration.case360;
 import java.math.BigDecimal;
 
 import org.jobrunr.scheduling.JobScheduler;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Component;
 

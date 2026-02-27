@@ -6,7 +6,6 @@ import java.time.LocalDate;
 import java.util.Base64;
 import java.util.HashMap;
 import java.util.Map;
-import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 
@@ -17,11 +16,9 @@ import org.springframework.stereotype.Service;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.solusoft.ai.mcp.features.claims.model.Claim;
 import com.solusoft.ai.mcp.features.claims.model.CreateHealthClaimRequest;
 import com.solusoft.ai.mcp.features.claims.model.CreateMotorClaimRequest;
 import com.solusoft.ai.mcp.features.claims.model.StoreClaimRequest;
-import com.solusoft.ai.mcp.features.claims.repository.ClaimRepository;
 import com.solusoft.ai.mcp.features.claims.service.ClaimPersistenceService;
 import com.solusoft.ai.mcp.integration.case360.Case360Client;
 import com.solusoft.ai.mcp.integration.case360.Case360RecoveryHandler;
@@ -34,7 +31,6 @@ public class ClaimsMcpTools {
 
     private final Case360Client case360Client;
     private final ObjectMapper objectMapper;
-    private final ClaimRepository claimRepository;
     private final Case360RecoveryHandler recoveryHandler;
     private final ClaimPersistenceService persistenceService;
     
@@ -44,14 +40,12 @@ public class ClaimsMcpTools {
         "image/tiff"
     );
     
-    public ClaimsMcpTools(ClaimRepository claimRepository, 
-                         Case360Client case360Client, 
+    public ClaimsMcpTools(Case360Client case360Client, 
                          ObjectMapper objectMapper,
                          Case360RecoveryHandler recoveryHandler,
                          ClaimPersistenceService persistenceService) {
         this.case360Client = case360Client;
         this.objectMapper = objectMapper;
-        this.claimRepository = claimRepository;
         this.recoveryHandler = recoveryHandler;
         this.persistenceService = persistenceService;
     }

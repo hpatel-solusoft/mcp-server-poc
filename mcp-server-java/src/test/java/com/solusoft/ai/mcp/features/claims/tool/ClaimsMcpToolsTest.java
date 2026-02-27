@@ -19,7 +19,6 @@ import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.Base64;
 import java.util.Map;
-import java.util.Optional;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -30,7 +29,6 @@ import org.springframework.boot.test.autoconfigure.json.JsonTest;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.solusoft.ai.mcp.features.claims.model.Claim;
 import com.solusoft.ai.mcp.features.claims.model.CreateHealthClaimRequest;
 import com.solusoft.ai.mcp.features.claims.model.CreateMotorClaimRequest;
 import com.solusoft.ai.mcp.features.claims.model.StoreClaimRequest;
@@ -42,9 +40,6 @@ import com.solusoft.ai.mcp.integration.case360.Case360RecoveryHandler;
 @JsonTest
 public class ClaimsMcpToolsTest {
 
-    @MockitoBean
-    private ClaimRepository claimRepository;
-    
     @MockitoBean
     private Case360Client case360Client;
 
@@ -62,7 +57,7 @@ public class ClaimsMcpToolsTest {
     
     @BeforeEach
     public void setup() {
-        tools = new ClaimsMcpTools(claimRepository, case360Client, objectMapper, recoveryHandler, persistenceService);
+        tools = new ClaimsMcpTools(case360Client, objectMapper, recoveryHandler, persistenceService);
     }
 
     @Test

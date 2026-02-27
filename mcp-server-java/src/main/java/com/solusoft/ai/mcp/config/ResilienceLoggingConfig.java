@@ -1,11 +1,11 @@
 package com.solusoft.ai.mcp.config;
 
-import io.github.resilience4j.core.registry.RegistryEventConsumer;
-import io.github.resilience4j.retry.Retry;
-import io.github.resilience4j.retry.RetryRegistry;
-import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+
+import io.github.resilience4j.core.registry.RegistryEventConsumer;
+import io.github.resilience4j.retry.Retry;
+import lombok.extern.slf4j.Slf4j;
 
 @Configuration
 @Slf4j

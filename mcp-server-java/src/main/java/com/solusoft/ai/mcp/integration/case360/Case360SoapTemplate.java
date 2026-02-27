@@ -14,7 +14,23 @@ import org.springframework.stereotype.Component;
 import org.springframework.ws.client.core.WebServiceTemplate;
 
 import com.solusoft.ai.mcp.exception.Case360IntegrationException;
-import com.solusoft.ai.mcp.integration.case360.soap.*;
+import com.solusoft.ai.mcp.integration.case360.soap.CreateCaseFolder;
+import com.solusoft.ai.mcp.integration.case360.soap.CreateCaseFolderResponse;
+import com.solusoft.ai.mcp.integration.case360.soap.CreateFileStore;
+import com.solusoft.ai.mcp.integration.case360.soap.CreateFileStoreResponse;
+import com.solusoft.ai.mcp.integration.case360.soap.DoQueryByScriptName;
+import com.solusoft.ai.mcp.integration.case360.soap.DoQueryByScriptNameResponse;
+import com.solusoft.ai.mcp.integration.case360.soap.FieldPropertiesTO;
+import com.solusoft.ai.mcp.integration.case360.soap.FieldPropertiesTOArray;
+import com.solusoft.ai.mcp.integration.case360.soap.FmsFieldTO;
+import com.solusoft.ai.mcp.integration.case360.soap.FmsRowTO;
+import com.solusoft.ai.mcp.integration.case360.soap.GetCaseFolderFields;
+import com.solusoft.ai.mcp.integration.case360.soap.GetCaseFolderFieldsResponse;
+import com.solusoft.ai.mcp.integration.case360.soap.ObjectFactory;
+import com.solusoft.ai.mcp.integration.case360.soap.PutFile;
+import com.solusoft.ai.mcp.integration.case360.soap.RemoveCaseFolder;
+import com.solusoft.ai.mcp.integration.case360.soap.RemoveFileStore;
+import com.solusoft.ai.mcp.integration.case360.soap.SetCaseFolderFields;
 
 import jakarta.xml.bind.JAXBElement;
 import lombok.extern.slf4j.Slf4j;

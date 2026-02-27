@@ -69,6 +69,7 @@ metadata:
     app: mcp-server
 spec:
   type: LoadBalancer
+  sessionAffinity: ClientIP    # ADDED: Keeps the Python client on the same Pod
   selector:
     app: mcp-server
   ports:

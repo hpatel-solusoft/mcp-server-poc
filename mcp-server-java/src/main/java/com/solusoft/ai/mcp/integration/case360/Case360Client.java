@@ -6,6 +6,8 @@ import org.springframework.stereotype.Service;
 import io.github.resilience4j.circuitbreaker.CircuitBreaker;
 import io.github.resilience4j.circuitbreaker.CircuitBreakerRegistry;
 import io.github.resilience4j.decorators.Decorators;
+import io.github.resilience4j.retry.Retry;
+import io.github.resilience4j.retry.RetryRegistry;
 
 @Service
 public class Case360Client {
@@ -13,19 +15,22 @@ public class Case360Client {
     private final Case360SoapTemplate soapTemplate;
     private final Case360RecoveryHandler recoveryHandler;
     private final CircuitBreaker circuitBreaker;
-
+    private final Retry retry; 
+    
     public Case360Client(Case360SoapTemplate soapTemplate, 
                          Case360RecoveryHandler recoveryHandler,
-                         CircuitBreakerRegistry registry) {
+                         CircuitBreakerRegistry registry,RetryRegistry retryRegistry) {
         this.soapTemplate = soapTemplate;
         this.recoveryHandler = recoveryHandler;
         this.circuitBreaker = registry.circuitBreaker("case360Service");
+        this.retry = retryRegistry.retry("case360Service");
     }
 
     public boolean ping() { return soapTemplate.executePing(); }
 
     public String getClaimStatus(String claimId) {
         return Decorators.ofSupplier(() -> soapTemplate.executeGetClaimStatus(claimId))
+        		.withRetry(retry)
                 .withCircuitBreaker(circuitBreaker)
                 .withFallback((t) -> recoveryHandler.handleCriticalFailure(t, "getClaimStatus:" + claimId))
                 .get();
@@ -33,6 +38,7 @@ public class Case360Client {
 
     public BigDecimal getCaseFolderTemplateId(String name) {
         return Decorators.ofSupplier(() -> soapTemplate.executeGetTemplateId(name, "getCaseTemplateIdFromName"))
+        		.withRetry(retry)
                 .withCircuitBreaker(circuitBreaker)
                 .withFallback((t) -> recoveryHandler.handleCriticalFailure(t, "getCaseTemplateId:" + name))
                 .get();
@@ -40,6 +46,7 @@ public class Case360Client {
 
     public BigDecimal getFilestoreTemplateId(String name) {
         return Decorators.ofSupplier(() -> soapTemplate.executeGetTemplateId(name, "getFileStoreTemplateId"))
+        		.withRetry(retry)
                 .withCircuitBreaker(circuitBreaker)
                 .withFallback((t) -> recoveryHandler.handleCriticalFailure(t, "getFilestoreTemplateId:" + name))
                 .get();
@@ -47,6 +54,7 @@ public class Case360Client {
 
     public String createCase(BigDecimal tid) {
         return Decorators.ofSupplier(() -> soapTemplate.executeCreateCase(tid))
+        		.withRetry(retry)
                 .withCircuitBreaker(circuitBreaker)
                 .withFallback((t) -> recoveryHandler.handleCriticalFailure(t, "createCase"))
                 .get();
@@ -58,6 +66,7 @@ public class Case360Client {
             soapTemplate.executeUpdateFields(id, upd);
             return null;
         })
+        .withRetry(retry)
         .withCircuitBreaker(circuitBreaker)
         .withFallback((t) -> {
             recoveryHandler.handleVoidFailure(t, "updateCaseFields:" + id);
@@ -68,6 +77,7 @@ public class Case360Client {
 
     public String createFileStore(BigDecimal tid) {
         return Decorators.ofSupplier(() -> soapTemplate.executeCreateFileStore(tid))
+        		.withRetry(retry)
                 .withCircuitBreaker(circuitBreaker)
                 .withFallback((t) -> recoveryHandler.handleCriticalFailure(t, "createFileStore"))
                 .get();
@@ -79,6 +89,7 @@ public class Case360Client {
             soapTemplate.executeUploadDocument(id, bytes, file);
             return null;
         })
+        .withRetry(retry)
         .withCircuitBreaker(circuitBreaker)
         .withFallback((t) -> {
             recoveryHandler.handleVoidFailure(t, "uploadDocument:" + file);

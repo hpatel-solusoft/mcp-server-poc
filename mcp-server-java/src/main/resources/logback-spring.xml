@@ -3,7 +3,7 @@
     <include resource="org/springframework/boot/logging/logback/defaults.xml"/>
     
     <property name="LOG_FILE" value="logs/mcp-server.json"/>
-
+	<property name="HOSTNAME" value="${HOSTNAME:-unknown}" />
     <appender name="JSON_CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
         <encoder class="net.logstash.logback.encoder.LogstashEncoder">
             <jsonGeneratorDecorator class="net.logstash.logback.decorate.PrettyPrintingJsonGeneratorDecorator"/>
@@ -22,8 +22,11 @@
         </rollingPolicy>
         
         <encoder class="net.logstash.logback.encoder.LogstashEncoder">
-            <includeMdc>true</includeMdc>
-        </encoder>
+        	<jsonGeneratorDecorator class="net.logstash.logback.decorate.PrettyPrintingJsonGeneratorDecorator"/>
+        	<includeContext>true</includeContext>
+		    <includeMdc>true</includeMdc>
+		</encoder>
+		
     </appender>
 
     <root level="INFO">

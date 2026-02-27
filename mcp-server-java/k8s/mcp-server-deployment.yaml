@@ -17,21 +17,36 @@ spec:
         - name: mcp-server
           image: hpatelsolusoft/claims-mcp-server:b907045f01cd70675278a383c1f2b6f347519e47
           ports:
-            - name: http # MANDATORY: Named port for Prometheus
+            - name: http
               containerPort: 9090
           env:
+            # 1. CORE SPRING SETTINGS
             - name: SPRING_PROFILES_ACTIVE
               value: "prod"
-            - name: SPRING_AI_MCP_SERVER_PROTOCOL
-              value: "STATELESS"
             - name: SERVER_PORT
               value: "9090"
+            - name: SPRING_AI_MCP_SERVER_PROTOCOL
+              value: "STATELESS"
+
+            # 2. INFRASTRUCTURE (Using FQDN for stability)
+            # Format: <service-name>.<namespace>.svc.cluster.local
+            - name: SPRING_DATASOURCE_URL
+              value: "jdbc:postgresql://postgres-service.mcp-prod.svc.cluster.local:5432/mcp_db"
+            - name: SPRING_CLOUD_VAULT_URI
+              value: "http://vault-service.mcp-prod.svc.cluster.local:8201"
+
+            # 3. EXTERNAL INTEGRATION (Resolves the case360.username error)
             - name: CASE360_URL
               value: "http://122.169.108.196:8080/sonora/soap/Ws"
-            - name: SPRING_CLOUD_VAULT_URI
-              value: "http://vault-service:8201"
-            - name: SPRING_DATASOURCE_URL
-              value: "jdbc:postgresql://postgres-service:5432/mcp_db"
+            - name: CASE360_USERNAME
+              value: "your_username_here" # Matches ${case360.username}
+            - name: CASE360_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: mcp-secrets
+                  key: case360-password
+
+            # 4. CREDENTIALS & SECRETS
             - name: SPRING_DATASOURCE_USERNAME
               value: "mcp_user"
             - name: SPRING_DATASOURCE_PASSWORD
@@ -49,33 +64,17 @@ spec:
                 secretKeyRef:
                   name: mcp-secrets
                   key: vault-secret-id
+          
+          # 5. PRODUCTION-GRADE PROBES
           livenessProbe:
             httpGet:
               path: /actuator/health/liveness
               port: 9090
-            initialDelaySeconds: 45
-            periodSeconds: 10
+            initialDelaySeconds: 60 # Allows JVM/Flyway to finish
+            periodSeconds: 15
           readinessProbe:
             httpGet:
               path: /actuator/health/readiness
               port: 9090
-            initialDelaySeconds: 45
-            periodSeconds: 10
----
-apiVersion: v1
-kind: Service
-metadata:
-  name: mcp-server-service
-  namespace: mcp-prod
-  labels: # FIX: Labels must exist here for ServiceMonitor
-    app: mcp-server
-spec:
-  type: LoadBalancer
-  selector:
-    app: mcp-server
-  ports:
-    - name: http # MANDATORY: Matches ServiceMonitor endpoint port
-      protocol: TCP
-      port: 9091
-      targetPort: 9090
-      nodePort: 30091
+            initialDelaySeconds: 60
+            periodSeconds: 15

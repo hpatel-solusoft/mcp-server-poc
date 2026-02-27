@@ -14,67 +14,68 @@ spec:
         app: mcp-server
     spec:
       containers:
-      - name: mcp-server
-        image: hpatelsolusoft/claims-mcp-server:af80262bc648d4f192f3268b162eede6671e985d
-        ports:
-        - name: http           # MANDATORY: Named port for Prometheus
-          containerPort: 9090
-        env:
-        - name: SPRING_PROFILES_ACTIVE
-          value: "prod"
-        - name: SERVER_PORT
-          value: "9090"
-        - name: CASE360_URL
-          value: "http://122.169.108.196:8080/sonora/soap/Ws"
-        - name: SPRING_CLOUD_VAULT_URI
-          value: "http://vault-service:8201"
-        - name: SPRING_DATASOURCE_URL
-          value: "jdbc:postgresql://postgres-service:5432/mcp_db"
-        - name: SPRING_DATASOURCE_USERNAME
-          value: "mcp_user"
-        - name: SPRING_DATASOURCE_PASSWORD
-          valueFrom:
-            secretKeyRef:
-              name: mcp-secrets
-              key: db-password
-        - name: VAULT_ROLE_ID
-          valueFrom:
-            secretKeyRef:
-              name: mcp-secrets
-              key: vault-role-id
-        - name: VAULT_SECRET_ID
-          valueFrom:
-            secretKeyRef:
-              name: mcp-secrets
-              key: vault-secret-id
-        livenessProbe:
-          httpGet:
-            path: /actuator/health/liveness
-            port: 9090
-          initialDelaySeconds: 45
-          periodSeconds: 10
-        readinessProbe:
-          httpGet:
-            path: /actuator/health/readiness
-            port: 9090
-          initialDelaySeconds: 45
-          periodSeconds: 10
+        - name: mcp-server
+          image: hpatelsolusoft/claims-mcp-server:af80262bc648d4f192f3268b162eede6671e985d
+          ports:
+            - name: http # MANDATORY: Named port for Prometheus
+              containerPort: 9090
+          env:
+            - name: SPRING_PROFILES_ACTIVE
+              value: "prod"
+            - name: SPRING_AI_MCP_SERVER_PROTOCOL
+              value: "STATELESS"
+            - name: SERVER_PORT
+              value: "9090"
+            - name: CASE360_URL
+              value: "http://122.169.108.196:8080/sonora/soap/Ws"
+            - name: SPRING_CLOUD_VAULT_URI
+              value: "http://vault-service:8201"
+            - name: SPRING_DATASOURCE_URL
+              value: "jdbc:postgresql://postgres-service:5432/mcp_db"
+            - name: SPRING_DATASOURCE_USERNAME
+              value: "mcp_user"
+            - name: SPRING_DATASOURCE_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: mcp-secrets
+                  key: db-password
+            - name: VAULT_ROLE_ID
+              valueFrom:
+                secretKeyRef:
+                  name: mcp-secrets
+                  key: vault-role-id
+            - name: VAULT_SECRET_ID
+              valueFrom:
+                secretKeyRef:
+                  name: mcp-secrets
+                  key: vault-secret-id
+          livenessProbe:
+            httpGet:
+              path: /actuator/health/liveness
+              port: 9090
+            initialDelaySeconds: 45
+            periodSeconds: 10
+          readinessProbe:
+            httpGet:
+              path: /actuator/health/readiness
+              port: 9090
+            initialDelaySeconds: 45
+            periodSeconds: 10
 ---
 apiVersion: v1
 kind: Service
 metadata:
   name: mcp-server-service
   namespace: mcp-prod
-  labels:                      # FIX: Labels must exist here for ServiceMonitor
+  labels: # FIX: Labels must exist here for ServiceMonitor
     app: mcp-server
 spec:
   type: LoadBalancer
-  sessionAffinity: ClientIP    # ADDED: Keeps the Python client on the same Pod
   selector:
     app: mcp-server
   ports:
-  - name: http                 # MANDATORY: Matches ServiceMonitor endpoint port
-    protocol: TCP
-    port: 9091
-    targetPort: 9090
-    nodePort: 30091
+    - name: http # MANDATORY: Matches ServiceMonitor endpoint port
+      protocol: TCP
+      port: 9091
+      targetPort: 9090
+      nodePort: 30091

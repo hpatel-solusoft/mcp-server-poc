@@ -33,7 +33,7 @@ spec:
     spec:
       containers:
         - name: mcp-server
-          image: hpatelsolusoft/claims-mcp-server:8ffeea698a68e40d89dd1bf0d05eaf5195681d0e
+          image: hpatelsolusoft/claims-mcp-server:e2750081f76f037f3c5699711908a7016e39dde5
           ports:
             - name: http
               containerPort: 9090

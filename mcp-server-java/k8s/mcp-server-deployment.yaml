@@ -1,3 +1,21 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: mcp-server-service
+  namespace: mcp-prod
+  labels:                      # RESTORED: Required for ServiceMonitor/Prometheus
+    app: mcp-server
+spec:
+  type: LoadBalancer
+  selector:
+    app: mcp-server
+  ports:
+    - name: http                 # MANDATORY: Matches ServiceMonitor endpoint port
+      protocol: TCP
+      port: 9091                 # External Access
+      targetPort: 9090           # Internal Container Port
+      nodePort: 30091
+---
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -19,34 +37,49 @@ spec:
           ports:
             - name: http
               containerPort: 9090
+          resources:             # Added to prevent GC pauses/timeouts
+            requests:
+              memory: "512Mi"
+              cpu: "500m"
+            limits:
+              memory: "1Gi"
+              cpu: "1000m"
           env:
-            # 1. CORE SPRING SETTINGS
             - name: SPRING_PROFILES_ACTIVE
               value: "prod"
             - name: SERVER_PORT
               value: "9090"
             - name: SPRING_AI_MCP_SERVER_PROTOCOL
               value: "STATELESS"
+            - name: TZ
+              value: "UTC"       # Fixes JobRunr clock-drift
+            - name: JAVA_OPTS
+              value: "-Xms512m -Xmx512m"
+            
+            # JobRunr Stability Fixes
+            - name: ORG_JOBRUNR_SERVER_POLL_INTERVAL
+              value: "30"
+            - name: ORG_JOBRUNR_SERVER_UNANNOUNCED_JOB_SERVER_OUTDATED_THRESHOLD
+              value: "PT5M"
 
-            # 2. INFRASTRUCTURE (Using FQDN for stability)
-            # Format: <service-name>.<namespace>.svc.cluster.local
+            # Infrastructure (FQDN)
             - name: SPRING_DATASOURCE_URL
               value: "jdbc:postgresql://postgres-service.mcp-prod.svc.cluster.local:5432/mcp_db"
             - name: SPRING_CLOUD_VAULT_URI
               value: "http://vault-service.mcp-prod.svc.cluster.local:8201"
 
-            # 3. EXTERNAL INTEGRATION (Resolves the case360.username error)
+            # Case360 Credentials (Fixes PlaceholderResolutionException)
             - name: CASE360_URL
               value: "http://122.169.108.196:8080/sonora/soap/Ws"
             - name: CASE360_USERNAME
-              value: "your_username_here" # Matches ${case360.username}
+              value: "your_actual_username" 
             - name: CASE360_PASSWORD
               valueFrom:
                 secretKeyRef:
                   name: mcp-secrets
                   key: case360-password
 
-            # 4. CREDENTIALS & SECRETS
+            # Secrets Mapping
             - name: SPRING_DATASOURCE_USERNAME
               value: "mcp_user"
             - name: SPRING_DATASOURCE_PASSWORD
@@ -65,16 +98,15 @@ spec:
                   name: mcp-secrets
                   key: vault-secret-id
           
-          # 5. PRODUCTION-GRADE PROBES
           livenessProbe:
             httpGet:
               path: /actuator/health/liveness
               port: 9090
-            initialDelaySeconds: 60 # Allows JVM/Flyway to finish
-            periodSeconds: 15
+            initialDelaySeconds: 90 # Increased for stable startup
+            periodSeconds: 20
           readinessProbe:
             httpGet:
               path: /actuator/health/readiness
               port: 9090
-            initialDelaySeconds: 60
-            periodSeconds: 15
+            initialDelaySeconds: 90
+            periodSeconds: 20
